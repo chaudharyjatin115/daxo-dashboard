@@ -3,18 +3,18 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { BusinessProvider } from "./context/BusinessContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <BusinessProvider>
+    <AuthProvider>
+      <BusinessProvider>
+        <ThemeProvider>
           <App />
-        </BusinessProvider>
-      </AuthProvider>
-    </ThemeProvider>
+        </ThemeProvider>
+      </BusinessProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

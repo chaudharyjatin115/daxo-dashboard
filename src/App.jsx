@@ -10,7 +10,26 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 
-/* ------------------ ROUTE GUARDS ------------------ */
+/*require on boarding fix */
+function RequireOnboarding({ children }) {
+  const { businessName, loading } = useBusiness();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading…
+      </div>
+    );
+  }
+
+  if (businessName === null) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
+}
+
+
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -30,7 +49,7 @@ function RequireAuth({ children }) {
   return children;
 }
 
-function RequireOnboarding({ children }) {
+function RequireBusiness({ children }) {
   const { businessName, loading } = useBusiness();
 
   if (loading) {
@@ -48,19 +67,18 @@ function RequireOnboarding({ children }) {
   return children;
 }
 
+/* ------------------ APP ------------------ */
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ------------------ PUBLIC ------------------ */}
+        {/* ---------- PUBLIC ---------- */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        {/* ------------------ ONBOARDING ------------------ */}
+        {/* ---------- ONBOARDING ---------- */}
         <Route
           path="/onboarding"
           element={
@@ -70,14 +88,14 @@ export default function App() {
           }
         />
 
-        {/* ------------------ APP ------------------ */}
+        {/* ---------- APP ---------- */}
         <Route
           path="/"
           element={
             <RequireAuth>
-              <RequireOnboarding>
+              <RequireBusiness>
                 <Dashboard />
-              </RequireOnboarding>
+              </RequireBusiness>
             </RequireAuth>
           }
         />
@@ -86,16 +104,17 @@ export default function App() {
           path="/settings"
           element={
             <RequireAuth>
-              <RequireOnboarding>
+              <RequireBusiness>
                 <Settings />
-              </RequireOnboarding>
+              </RequireBusiness>
             </RequireAuth>
           }
         />
 
-        {/* ------------------ FALLBACK ------------------ */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* ---------- FALLBACK ---------- */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
+

@@ -17,8 +17,8 @@ export default function Onboarding() {
   const { setBusinessName, setLogo } = useBusiness();
   const navigate = useNavigate();
 
-  const [businessName, setLocalBusinessName] = useState("");
-  const [logo, setLocalLogo] = useState(null);
+  const [localBusinessName, setLocalBusinessName] = useState("");
+  const [localLogo, setLocalLogo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -49,35 +49,36 @@ export default function Onboarding() {
 
   /* ------------------ SUBMIT ------------------ */
   async function submit() {
-    if (!businessName || !user) return;
+    if (!localBusinessName.trim() || !user) return;
+
     setLoading(true);
 
     const payload = {
       profile: {
-        businessName,
-        logo: logo || "",
+        businessName: localBusinessName.trim(),
+        logo: localLogo || "",
         createdAt: new Date(),
       },
     };
 
     // 1️⃣ Save to Firestore
-    await setDoc(doc(db, "users", user.uid), payload);
+    await setDoc(doc(db, "users", user.uid), payload, { merge: true });
 
-    // 2️⃣ Update BusinessContext IMMEDIATELY
-    setBusinessName(businessName);
-    setLogo(logo || null);
+    // 2️⃣ Update BusinessContext immediately
+    setBusinessName(localBusinessName.trim());
+    setLogo(localLogo || null);
 
-    // 3️⃣ Cache locally (optional but fast)
-    localStorage.setItem("businessName", businessName);
-    if (logo) {
-      localStorage.setItem("businessLogo", logo);
+    // 3️⃣ Optional local cache
+    localStorage.setItem("businessName", localBusinessName.trim());
+    if (localLogo) {
+      localStorage.setItem("businessLogo", localLogo);
     }
 
-    // 4️⃣ Navigate to dashboard
+    // 4️⃣ Go to dashboard
     navigate("/", { replace: true });
   }
 
-  const displayLogo = logo || user?.photoURL;
+  const displayLogo = localLogo || user?.photoURL || "/avatar.png";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -90,9 +91,7 @@ export default function Onboarding() {
           animate-scale-in
         "
       >
-        <h1 className="text-xl font-semibold">
-          Set up your business
-        </h1>
+        <h1 className="text-xl font-semibold">Set up your business</h1>
 
         {/* LOGO PICKER */}
         <div className="space-y-3">
@@ -107,18 +106,16 @@ export default function Onboarding() {
 
             <div className="flex flex-col gap-2">
               <label className="text-sm cursor-pointer text-[var(--accent)]">
-                {logo ? "Change logo" : "Upload logo"}
+                {localLogo ? "Change logo" : "Upload logo"}
                 <input
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={(e) =>
-                    uploadLogo(e.target.files[0])
-                  }
+                  onChange={(e) => uploadLogo(e.target.files[0])}
                 />
               </label>
 
-              {logo && (
+              {localLogo && (
                 <button
                   onClick={removeLogo}
                   className="text-xs text-red-500"
@@ -136,15 +133,11 @@ export default function Onboarding() {
 
         {/* BUSINESS NAME */}
         <div className="space-y-2">
-          <label className="text-sm opacity-70">
-            Business name
-          </label>
+          <label className="text-sm opacity-70">Business name</label>
 
           <input
-            value={businessName}
-            onChange={(e) =>
-              setLocalBusinessName(e.target.value)
-            }
+            value={localBusinessName}
+            onChange={(e) => setLocalBusinessName(e.target.value)}
             placeholder="Your business name"
             className="
               w-full p-3 rounded-xl outline-none
@@ -175,4 +168,3 @@ export default function Onboarding() {
     </div>
   );
 }
-

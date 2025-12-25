@@ -1,81 +1,58 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase";
 import { useAuth } from "./AuthContext";
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
-const BusinessContext = createContext(null);
+const BusinessContext = createContext(undefined);
 
 export function BusinessProvider({ children }) {
   const { user, loading: authLoading } = useAuth();
 
-  const [businessName, setBusinessName] = useState("");
+  const [businessName, setBusinessName] = useState(null);
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ------------------ LOAD PROFILE ------------------ */
   useEffect(() => {
-    // ⛔ auth still resolving
     if (authLoading) return;
 
-    // 🔓 logged out → unblock app
     if (!user) {
-      setBusinessName("");
+      setBusinessName(null);
       setLogo(null);
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
-
-    async function loadProfile() {
+    (async () => {
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
-        if (!snap.exists()) {
-          if (!cancelled) {
-            setBusinessName("");
-            setLogo(null);
-          }
-        } else {
-          const profile = snap.data().profile || {};
-          if (!cancelled) {
-            setBusinessName(profile.businessName || "");
-            setLogo(profile.logo || null);
-          }
-        }
-      } catch (err) {
-        console.error("Business profile load failed", err);
+        const profile = snap.data()?.profile;
+
+        setBusinessName(profile?.businessName || null);
+        setLogo(profile?.logo || null);
+      } catch {
+        setBusinessName(null);
+        setLogo(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
-    }
-
-    loadProfile();
-
-    return () => {
-      cancelled = true;
-    };
+    })();
   }, [user, authLoading]);
 
-  /* ------------------ SAVE NAME ------------------ */
-  async function saveBusinessName(name) {
-    if (!user) return;
-    await updateDoc(doc(db, "users", user.uid), {
-      "profile.businessName": name,
-    });
+  const saveBusinessName = async (name) => {
     setBusinessName(name);
-  }
+  };
+
+  const value = {
+    businessName,
+    setBusinessName,
+    saveBusinessName,
+    logo,
+    setLogo,
+    loading,
+  };
 
   return (
-    <BusinessContext.Provider
-      value={{
-        businessName,
-        setBusinessName,
-        saveBusinessName,
-        logo,
-        setLogo,
-        loading,
-      }}
-    >
+    <BusinessContext.Provider value={value}>
       {children}
     </BusinessContext.Provider>
   );

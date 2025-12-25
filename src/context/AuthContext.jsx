@@ -3,46 +3,58 @@ import { auth } from "../firebase";
 import {
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
 
-const AuthContext = createContext(undefined);
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /* ------------------ AUTH STATE ------------------ */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
     });
-
     return unsub;
   }, []);
 
+  /* ------------------ EMAIL LOGIN ------------------ */
+  async function login(email, password) {
+    return signInWithEmailAndPassword(auth, email, password);
+  }
+
+  /* ------------------ EMAIL SIGNUP ------------------ */
+  async function signup(email, password) {
+    const cred = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    // Email verification (important)
+    await sendEmailVerification(cred.user);
+
+    return cred;
+  }
+
+  /* ------------------ GOOGLE LOGIN ------------------ */
   async function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: "select_account", // 🔑 fixes mobile bug
+    });
 
-    // 🔑 popup breaks on mobile → redirect is required
-    if (window.innerWidth < 768) {
-      await signInWithRedirect(auth, provider);
-    } else {
-      await signInWithPopup(auth, provider);
-    }
+    return signInWithPopup(auth, provider);
   }
 
-  async function handleRedirectResult() {
-    try {
-      await getRedirectResult(auth);
-    } catch (e) {
-      console.error("Redirect login failed", e);
-    }
-  }
-
+  /* ------------------ LOGOUT ------------------ */
   async function logout() {
     await signOut(auth);
   }
@@ -52,9 +64,10 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
+        login,
+        signup,
         loginWithGoogle,
         logout,
-        handleRedirectResult,
       }}
     >
       {children}
@@ -62,6 +75,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+/* ------------------ HOOK ------------------ */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
