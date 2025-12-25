@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
-import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../firebase";
+import { sendEmailVerification } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,61 +10,37 @@ export default function VerifyEmail() {
 
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
 
-  /* ------------------ AUTO DETECT VERIFICATION ------------------ */
+  /* ------------------ AUTO CHECK VERIFICATION ------------------ */
   useEffect(() => {
     if (!user) return;
 
-    const interval = setInterval(async () => {
-      try {
-        await auth.currentUser?.reload();
+    let interval = setInterval(async () => {
+      await user.reload(); // 🔑 REQUIRED
+      const refreshedUser = auth.currentUser;
 
-        if (auth.currentUser?.emailVerified) {
-          // ✅ SAFE navigation
-          navigate("/", { replace: true });
-        }
-      } catch (err) {
-        console.error("Verification reload failed", err);
+      if (refreshedUser?.emailVerified) {
+        clearInterval(interval);
+        navigate("/", { replace: true }); // → Dashboard or onboarding
       }
-    }, 3000);
+    }, 3000); // every 3 seconds
 
     return () => clearInterval(interval);
   }, [user, navigate]);
 
-  /* ------------------ RESEND EMAIL ------------------ */
+  /* ------------------ RESEND ------------------ */
   async function resendVerification() {
     if (!user) return;
-
     setSending(true);
-    setError("");
-    setSent(false);
-
-    try {
-      await sendEmailVerification(user);
-      setSent(true);
-    } catch (err) {
-      setError(
-        err.code === "auth/too-many-requests"
-          ? "Too many attempts. Please wait."
-          : "Failed to send verification email."
-      );
-    } finally {
-      setSending(false);
-    }
+    await sendEmailVerification(user);
+    setSent(true);
+    setSending(false);
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div
-        className="
-          w-full max-w-md p-6 rounded-3xl
-          border shadow-lg space-y-5
-          backdrop-blur-xl
-          bg-white/85 dark:bg-white/5
-          border-black/5 dark:border-white/10
-        "
-      >
+      <div className="w-full max-w-md p-6 rounded-3xl backdrop-blur-xl border shadow-lg space-y-5 bg-white/85 dark:bg-white/5 border-black/5 dark:border-white/10">
         <h1 className="text-xl font-semibold text-center">
           Verify your email
         </h1>
@@ -78,32 +54,26 @@ export default function VerifyEmail() {
         </p>
 
         <p className="text-xs text-center opacity-60">
-          This page will continue automatically once verified.
+          This page will automatically continue once verified.
         </p>
 
         {sent && (
           <p className="text-sm text-green-600 text-center">
-            Verification email sent ✔
-          </p>
-        )}
-
-        {error && (
-          <p className="text-sm text-red-500 text-center">
-            {error}
+            Verification email sent again ✔
           </p>
         )}
 
         <button
           onClick={resendVerification}
           disabled={sending}
-          className="
-            w-full py-3 rounded-xl
-            bg-[var(--accent)] text-white
-            disabled:opacity-60
-          "
+          className="w-full py-3 rounded-xl bg-[var(--accent)] text-white font-medium disabled:opacity-60"
         >
           {sending ? "Sending…" : "Resend verification email"}
         </button>
+
+        <p className="text-xs text-center opacity-50">
+          Waiting for verification…
+        </p>
       </div>
     </div>
   );
