@@ -24,6 +24,10 @@ export default function App() {
     );
   }
 
+  const isEmailUser = user?.providerData?.some(
+    (p) => p.providerId === "password"
+  );
+
   return (
     <BrowserRouter>
       <Routes>
@@ -32,37 +36,68 @@ export default function App() {
           <>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route
+              path="/forgot-password"
+              element={<ForgotPassword />}
+            />
+            <Route
+              path="*"
+              element={<Navigate to="/login" replace />}
+            />
           </>
         )}
 
         {/* ---------------- VERIFY EMAIL ---------------- */}
-        {user && !user.emailVerified && (
+        {user && isEmailUser && !user.emailVerified && (
           <>
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="*" element={<Navigate to="/verify-email" replace />} />
+            <Route
+              path="/verify-email"
+              element={<VerifyEmail />}
+            />
+            <Route
+              path="*"
+              element={
+                <Navigate to="/verify-email" replace />
+              }
+            />
           </>
         )}
 
         {/* ---------------- ONBOARDING ---------------- */}
-        {user && user.emailVerified && !businessName && (
-          <>
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="*" element={<Navigate to="/onboarding" replace />} />
-          </>
-        )}
+        {user &&
+          (!isEmailUser || user.emailVerified) &&
+          !businessName && (
+            <>
+              <Route
+                path="/onboarding"
+                element={<Onboarding />}
+              />
+              <Route
+                path="*"
+                element={
+                  <Navigate to="/onboarding" replace />
+                }
+              />
+            </>
+          )}
 
         {/* ---------------- APP ---------------- */}
-        {user && user.emailVerified && businessName && (
-          <>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
+        {user &&
+          (!isEmailUser || user.emailVerified) &&
+          businessName && (
+            <>
+              <Route path="/" element={<Dashboard />} />
+              <Route
+                path="/settings"
+                element={<Settings />}
+              />
+              <Route
+                path="*"
+                element={<Navigate to="/" replace />}
+              />
+            </>
+          )}
       </Routes>
     </BrowserRouter>
   );
 }
-

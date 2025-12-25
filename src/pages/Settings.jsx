@@ -15,7 +15,10 @@ import {
 import {
   deleteUser,
   GoogleAuthProvider,
+  EmailAuthProvider,
   reauthenticateWithPopup,
+  reauthenticateWithRedirect,
+  reauthenticateWithCredential,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
@@ -27,6 +30,10 @@ const COLORS = [
   "#dc2626",
   "#0f766e",
 ];
+
+function isMobile() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 export default function Settings() {
   const { logout, user } = useAuth();
@@ -53,6 +60,33 @@ export default function Settings() {
     document.documentElement.style.setProperty("--accent", accent);
     localStorage.setItem("accent", accent);
   }, [accent]);
+
+  /* ------------------ RESUME DELETE AFTER REDIRECT (MOBILE) ------------------ */
+  useEffect(() => {
+    const resumeDelete = async () => {
+      if (sessionStorage.getItem("PENDING_DELETE") !== "1") return;
+      sessionStorage.removeItem("PENDING_DELETE");
+
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        await deleteUser(currentUser);
+        await deleteDoc(doc(db, "users", currentUser.uid));
+
+        const logoRef = ref(storage, `logos/${currentUser.uid}`);
+        await deleteObject(logoRef).catch(() => {});
+
+        localStorage.clear();
+        navigate("/login", { replace: true });
+      } catch (err) {
+        console.error("Delete resume failed:", err);
+        alert("Please try deleting your account again.");
+      }
+    };
+
+    resumeDelete();
+  }, [navigate]);
 
   /* ------------------ SAVE BUSINESS NAME ------------------ */
   async function handleSaveBusinessName() {
@@ -95,7 +129,7 @@ export default function Settings() {
     setUploading(false);
   }
 
-  /* ------------------ DELETE ACCOUNT (FIXED) ------------------ */
+  /* ------------------ DELETE ACCOUNT (PRODUCTION SAFE) ------------------ */
   async function handleDeleteAccount() {
     if (!user || deleting) return;
 
@@ -107,46 +141,65 @@ export default function Settings() {
     setDeleting(true);
 
     try {
-      // 1️⃣ Delete Firestore user document
+      const currentUser = auth.currentUser;
+
+      try {
+        await deleteUser(currentUser);
+      } catch (err) {
+        if (err.code !== "auth/requires-recent-login") {
+          throw err;
+        }
+
+        const isGoogleUser = currentUser.providerData.some(
+          (p) => p.providerId === "google.com"
+        );
+
+        if (isGoogleUser) {
+          const provider = new GoogleAuthProvider();
+
+          if (isMobile()) {
+            sessionStorage.setItem("PENDING_DELETE", "1");
+            await reauthenticateWithRedirect(currentUser, provider);
+            return;
+          } else {
+            await reauthenticateWithPopup(currentUser, provider);
+          }
+        } else {
+          const password = window.prompt(
+            "Enter your password to confirm account deletion:"
+          );
+          if (!password) throw new Error("Password required");
+
+          const credential = EmailAuthProvider.credential(
+            currentUser.email,
+            password
+          );
+
+          await reauthenticateWithCredential(currentUser, credential);
+        }
+
+        await deleteUser(currentUser);
+      }
+
       await deleteDoc(doc(db, "users", user.uid));
 
-      // 2️⃣ Delete logo from storage (best-effort)
       const logoRef = ref(storage, `logos/${user.uid}`);
       await deleteObject(logoRef).catch(() => {});
 
-      // 3️⃣ Try deleting auth user
-      try {
-        await deleteUser(auth.currentUser);
-      } catch (err) {
-        if (err.code === "auth/requires-recent-login") {
-          // 🔐 Re-auth with Google
-          const provider = new GoogleAuthProvider();
-          await reauthenticateWithPopup(
-            auth.currentUser,
-            provider
-          );
-          await deleteUser(auth.currentUser);
-        } else {
-          throw err;
-        }
-      }
-
-      // 4️⃣ Cleanup local state
       localStorage.clear();
-
-      // 5️⃣ Redirect to login
       navigate("/login", { replace: true });
     } catch (err) {
       console.error(err);
-      alert(
-        "Account deletion failed. Please sign in again and try."
-      );
+      alert("Account deletion failed. Please try again.");
     } finally {
       setDeleting(false);
     }
   }
 
-  const displayLogo = logo || user?.photoURL || "/avatar.png";
+  const displayLogo =
+    logo ||
+    user?.photoURL ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${businessName || "D"}`;
 
   return (
     <main className="min-h-screen px-4 py-10 bg-[var(--bg-gradient)] transition-colors">
@@ -174,14 +227,10 @@ export default function Settings() {
 
           {/* BUSINESS NAME */}
           <div className="space-y-2">
-            <label className="text-sm opacity-70">
-              Business name
-            </label>
+            <label className="text-sm opacity-70">Business name</label>
             <input
               value={businessName || ""}
-              onChange={(e) =>
-                setBusinessName(e.target.value)
-              }
+              onChange={(e) => setBusinessName(e.target.value)}
               className="w-full p-3 rounded-xl outline-none bg-black/5 dark:bg-white/10"
             />
             <button
@@ -195,9 +244,7 @@ export default function Settings() {
 
           {/* LOGO PICKER */}
           <div className="space-y-3">
-            <label className="text-sm opacity-70">
-              Business logo
-            </label>
+            <label className="text-sm opacity-70">Business logo</label>
             <div className="flex items-center gap-4">
               <img
                 src={displayLogo}
@@ -211,9 +258,7 @@ export default function Settings() {
                     type="file"
                     accept="image/*"
                     hidden
-                    onChange={(e) =>
-                      uploadLogo(e.target.files[0])
-                    }
+                    onChange={(e) => uploadLogo(e.target.files[0])}
                   />
                 </label>
                 {logo && (
@@ -226,16 +271,11 @@ export default function Settings() {
                 )}
               </div>
             </div>
-            <p className="text-xs opacity-60">
-              If no logo is set, your Google profile photo is used.
-            </p>
           </div>
 
           {/* ACCENT PICKER */}
           <div>
-            <p className="text-sm mb-2">
-              Brand accent color
-            </p>
+            <p className="text-sm mb-2">Brand accent color</p>
             <div className="flex gap-3">
               {COLORS.map((c) => (
                 <button
@@ -246,8 +286,7 @@ export default function Settings() {
                   }`}
                   style={{
                     background: c,
-                    borderColor:
-                      accent === c ? c : "transparent",
+                    borderColor: accent === c ? c : "transparent",
                   }}
                 />
               ))}
@@ -256,7 +295,7 @@ export default function Settings() {
 
           {/* USER INFO */}
           <div className="text-sm space-y-1 opacity-80">
-            <p>👤 {user?.displayName}</p>
+            <p>👤 {user?.displayName || "Email user"}</p>
             <p>📧 {user?.email}</p>
           </div>
 
@@ -274,9 +313,7 @@ export default function Settings() {
             disabled={deleting}
             className="w-full py-3 rounded-xl border border-red-500 text-red-600 hover:bg-red-500 hover:text-white transition disabled:opacity-60"
           >
-            {deleting
-              ? "Deleting account…"
-              : "Delete my account"}
+            {deleting ? "Deleting account…" : "Delete my account"}
           </button>
         </div>
       </div>
