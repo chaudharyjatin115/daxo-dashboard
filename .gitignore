@@ -1,0 +1,78 @@
+# ===============================
+# Node / pnpm
+# ===============================
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================
+# Build outputs
+# ===============================
+dist/
+dist-ssr/
+build/
+
+# ===============================
+# Vite
+# ===============================
+.vite/
+
+# ===============================
+# Environment variables (CRITICAL)
+# ===============================
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Firebase (never commit secrets)
+.firebase/
+firebaserc
+firebase-debug.log*
+
+# ===============================
+# Tailwind CSS
+# ===============================
+# (Tailwind v4 doesn't generate cache, but future-proof)
+.tailwind/
+
+# ===============================
+# Logs
+# ===============================
+logs/
+*.log
+
+# ===============================
+# Editor / OS
+# ===============================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ===============================
+# Coverage / Tests
+# ===============================
+coverage/
+
+# ===============================
+# Temporary / Cache
+# ===============================
+.cache/
+.tmp/
+.temp/
+
+# ===============================
+# ESLint / TypeScript
+# ===============================
+.eslintcache
+*.tsbuildinfo
+
+# ===============================
+# Optional: Firebase Hosting
+# ===============================
+.firebasehosting.*

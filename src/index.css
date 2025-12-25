@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+/* ---------------------------------
+   ROOT + LAYOUT
+--------------------------------- */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* ---------------------------------
+   LIGHT MODE VARIABLES
+--------------------------------- */
+:root {
+  --accent: #7c6cf6;
+
+  --bg-gradient:
+    radial-gradient(circle at 20% 10%, #f3e8ff 0%, transparent 40%),
+    radial-gradient(circle at 80% 30%, #e0f2fe 0%, transparent 40%),
+    linear-gradient(180deg, #f8fafc, #f1f5f9);
+
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(0, 0, 0, 0.08);
+
+  --text-main: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.65);
+}
+
+/* ---------------------------------
+   DARK MODE VARIABLES
+--------------------------------- */
+.dark {
+  --bg-gradient:
+    radial-gradient(circle at 20% 10%, #2e1065 0%, transparent 40%),
+    radial-gradient(circle at 80% 30%, #082f49 0%, transparent 40%),
+    linear-gradient(180deg, #020617, #020617);
+
+  --card-bg: rgba(15, 23, 42, 0.85);
+  --card-border: rgba(255, 255, 255, 0.12);
+
+  --text-main: #e5e7eb;
+  --text-muted: rgba(229, 231, 235, 0.65);
+}
+
+/* ---------------------------------
+   GLOBAL BODY
+--------------------------------- */
+body {
+  background: var(--bg-gradient);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, Blink 🇺🇸MacSystemFont, sans-serif;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ---------------------------------
+   CARD + HEADER BASE FIX
+--------------------------------- */
+.card,
+header {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text-main);
+}
+
+/* ---------------------------------
+   ICON COLOR FIX (VERY IMPORTANT)
+--------------------------------- */
+svg {
+  color: var(--text-main);
+}
+
+.icon-muted {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------
+   ACCENT UTILITIES
+--------------------------------- */
+.accent-bg {
+  background-color: var(--accent);
+  color: #ffffff;
+}
+
+.accent-text {
+  color: var(--accent);
+}
+
+.accent-border {
+  border-color: var(--accent);
+}
+
+/* ---------------------------------
+   INPUT NORMALIZATION
+--------------------------------- */
+input,
+textarea {
+  background: transparent;
+  color: var(--text-main);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------
+   ANIMATIONS
+--------------------------------- */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradient-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+.animate-gradient-spin {
+  animation: gradient-spin 6s linear infinite;
+}
+
+/* ---------------------------------
+   MICRO INTERACTIONS
+--------------------------------- */
+button {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}

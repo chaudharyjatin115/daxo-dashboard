@@ -1,0 +1,42 @@
+<svg
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c6cf6" />
+      <stop offset="100%" stop-color="#a78bfa" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect
+    x="32"
+    y="32"
+    width="448"
+    height="448"
+    rx="120"
+    fill="url(#grad)"
+  />
+
+  <!-- Stylized D -->
+  <path
+    d="M200 140
+       H290
+       C350 140 380 180 380 256
+       C380 332 350 372 290 372
+       H200
+       Z
+       M240 180
+       V332
+       H288
+       C320 332 340 308 340 256
+       C340 204 320 180 288 180
+       Z"
+    fill="white"
+    opacity="0.95"
+  />
+</svg>
+

@@ -1,0 +1,24 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+>
+  <rect
+    x="32"
+    y="32"
+    width="448"
+    height="448"
+    rx="120"
+    fill="#7c6cf6"
+  />
+
+  <path
+    d="M220 180
+       H290
+       C330 180 350 210 350 256
+       C350 302 330 332 290 332
+       H220
+       Z"
+    fill="white"
+  />
+</svg>
+

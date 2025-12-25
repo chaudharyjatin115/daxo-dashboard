@@ -1,0 +1,45 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+  width="512"
+  height="512"
+>
+  <style>
+    :root {
+      --logo-accent: #7c6cf6;
+    }
+
+    .bg {
+      fill: var(--logo-accent);
+    }
+  </style>
+
+  <!-- Rounded background -->
+  <rect
+    x="32"
+    y="32"
+    width="448"
+    height="448"
+    rx="120"
+    class="bg"
+  />
+
+  <!-- Stylized D -->
+  <path
+    d="M200 140
+       H290
+       C350 140 380 180 380 256
+       C380 332 350 372 290 372
+       H200
+       Z
+       M240 180
+       V332
+       H288
+       C320 332 340 308 340 256
+       C340 204 320 180 288 180
+       Z"
+    fill="white"
+    opacity="0.95"
+  />
+</svg>
+
