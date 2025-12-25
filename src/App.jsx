@@ -9,110 +9,58 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
-
-/*require on boarding fix */
-function RequireOnboarding({ children }) {
-  const { businessName, loading } = useBusiness();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading…
-      </div>
-    );
-  }
-
-  if (businessName === null) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  return children;
-}
-
-
-
-function RequireAuth({ children }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-function RequireBusiness({ children }) {
-  const { businessName, loading } = useBusiness();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!businessName) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  return children;
-}
-
-/* ------------------ APP ------------------ */
+import VerifyEmail from "./pages/VerifyEmail";
 
 export default function App() {
+  const { user, loading: authLoading } = useAuth();
+  const { businessName, loading: businessLoading } = useBusiness();
+
+  /* ⛔ ABSOLUTE BLOCK */
+  if (authLoading || businessLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
-        {/* ---------- PUBLIC ---------- */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* ---------------- PUBLIC ---------------- */}
+        {!user && (
+          <>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        )}
 
-        {/* ---------- ONBOARDING ---------- */}
-        <Route
-          path="/onboarding"
-          element={
-            <RequireAuth>
-              <Onboarding />
-            </RequireAuth>
-          }
-        />
+        {/* ---------------- VERIFY EMAIL ---------------- */}
+        {user && !user.emailVerified && (
+          <>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="*" element={<Navigate to="/verify-email" replace />} />
+          </>
+        )}
 
-        {/* ---------- APP ---------- */}
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <RequireBusiness>
-                <Dashboard />
-              </RequireBusiness>
-            </RequireAuth>
-          }
-        />
+        {/* ---------------- ONBOARDING ---------------- */}
+        {user && user.emailVerified && !businessName && (
+          <>
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="*" element={<Navigate to="/onboarding" replace />} />
+          </>
+        )}
 
-        <Route
-          path="/settings"
-          element={
-            <RequireAuth>
-              <RequireBusiness>
-                <Settings />
-              </RequireBusiness>
-            </RequireAuth>
-          }
-        />
-
-        {/* ---------- FALLBACK ---------- */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ---------------- APP ---------------- */}
+        {user && user.emailVerified && businessName && (
+          <>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        )}
       </Routes>
     </BrowserRouter>
   );

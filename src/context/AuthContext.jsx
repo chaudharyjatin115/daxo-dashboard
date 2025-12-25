@@ -3,6 +3,8 @@ import { auth } from "../firebase";
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -11,6 +13,14 @@ import {
 } from "firebase/auth";
 
 const AuthContext = createContext(null);
+
+/* ------------------ HELPERS ------------------ */
+function isIOS() {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !window.MSStream
+  );
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -22,7 +32,21 @@ export function AuthProvider({ children }) {
       setUser(firebaseUser);
       setLoading(false);
     });
+
     return unsub;
+  }, []);
+
+  /* ------------------ REDIRECT RESULT (CRITICAL) ------------------ */
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   /* ------------------ EMAIL LOGIN ------------------ */
@@ -38,20 +62,28 @@ export function AuthProvider({ children }) {
       password
     );
 
-    // Email verification (important)
     await sendEmailVerification(cred.user);
-
     return cred;
   }
 
-  /* ------------------ GOOGLE LOGIN ------------------ */
+  /* ------------------ GOOGLE LOGIN (BULLETPROOF) ------------------ */
   async function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
-      prompt: "select_account", // 🔑 fixes mobile bug
+      prompt: "select_account",
     });
 
-    return signInWithPopup(auth, provider);
+    try {
+      if (isIOS()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      // 🔥 fallback for blocked popup / privacy mode
+      await signInWithRedirect(auth, provider);
+    }
   }
 
   /* ------------------ LOGOUT ------------------ */
