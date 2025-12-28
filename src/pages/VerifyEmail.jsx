@@ -11,7 +11,7 @@ export default function VerifyEmail() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   
-  /* ------------------ AUTO CHECK VERIFICATION ------------------ */
+  /* -auto check verification*/
   useEffect(() => {
     if (!user) return;
 
@@ -28,7 +28,7 @@ export default function VerifyEmail() {
     return () => clearInterval(interval);
   }, [user, navigate]);
 
-  /* ------------------ RESEND ------------------ */
+  /* resend*/
   async function resendVerification() {
     if (!user) return;
     setSending(true);
