@@ -10,8 +10,7 @@ export default function VerifyEmail() {
 
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [checking, setChecking] = useState(true);
-
+  
   /* ------------------ AUTO CHECK VERIFICATION ------------------ */
   useEffect(() => {
     if (!user) return;

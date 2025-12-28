@@ -11,8 +11,8 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
-const MAX_LOGO_SIZE_MB = 2;
 
+const MAX_LOGO_SIZE_MB = 2;
 
 export default function Onboarding() {
   const { user } = useAuth();
@@ -24,44 +24,59 @@ export default function Onboarding() {
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadTask, setUploadTask] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  /* ------------------ LOGO UPLOAD (WITH PROGRESS) ------------------ */
-function uploadLogo(file) {
-  if (!file || !user) return;
+  /* ------------------ LOGO UPLOAD ------------------ */
+  function uploadLogo(file) {
+    if (!file || !user) return;
 
-  // 🔐 Size validation
-  if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
-    alert("Logo must be smaller than 2 MB");
-    return;
+    if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
+      alert("Logo must be smaller than 2 MB");
+      return;
+    }
+
+    const logoRef = ref(storage, `logos/${user.uid}`);
+    const task = uploadBytesResumable(logoRef, file);
+    setUploadTask(task);
+
+    setUploading(true);
+    setUploadProgress(1);
+
+    task.on(
+      "state_changed",
+      (snap) => {
+        const percent = Math.round(
+          (snap.bytesTransferred / snap.totalBytes) * 100
+        );
+        setUploadProgress(percent);
+      },
+      (err) => {
+        if (err.code === "storage/canceled") return;
+        console.error(err);
+        setUploading(false);
+        setUploadTask(null);
+      },
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref);
+        setLocalLogo(url);
+        setUploadProgress(100);
+
+        setTimeout(() => {
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadTask(null);
+        }, 500);
+      }
+    );
   }
 
-  const logoRef = ref(storage, `logos/${user.uid}`);
-  const task = uploadBytesResumable(logoRef, file);
-
-  setUploading(true);
-  setUploadProgress(0);
-
-  task.on(
-    "state_changed",
-    (snap) => {
-      const progress =
-        (snap.bytesTransferred / snap.totalBytes) * 100;
-      setUploadProgress(Math.round(progress));
-    },
-    (err) => {
-      console.error("Upload failed:", err);
-      alert("Upload failed. Please try again.");
-      setUploading(false);
-    },
-    async () => {
-      const url = await getDownloadURL(task.snapshot.ref);
-      setLocalLogo(url);
-      setUploading(false);
-    }
-  );
-}
-
+  function cancelUpload() {
+    if (uploadTask) uploadTask.cancel();
+    setUploading(false);
+    setUploadProgress(0);
+    setUploadTask(null);
+  }
 
   /* ------------------ REMOVE LOGO ------------------ */
   async function removeLogo() {
@@ -69,10 +84,8 @@ function uploadLogo(file) {
 
     setUploading(true);
     try {
-      const logoRef = ref(storage, `logos/${user.uid}`);
-      await deleteObject(logoRef).catch(() => {});
+      await deleteObject(ref(storage, `logos/${user.uid}`)).catch(() => {});
       setLocalLogo(null);
-      setUploadProgress(0);
     } finally {
       setUploading(false);
     }
@@ -80,8 +93,7 @@ function uploadLogo(file) {
 
   /* ------------------ SAVE PROFILE ------------------ */
   async function saveProfile({ skipLogo = false } = {}) {
-    if (!businessName || !user) return;
-    if (uploading || saving) return;
+    if (!businessName || !user || saving) return;
 
     setSaving(true);
 
@@ -94,14 +106,11 @@ function uploadLogo(file) {
         },
       };
 
-      // 1️⃣ Firestore
       await setDoc(doc(db, "users", user.uid), payload);
 
-      // 2️⃣ Context
       setBusinessName(businessName);
       setLogo(skipLogo ? null : logo || null);
 
-      // 3️⃣ Cache
       localStorage.setItem("businessName", businessName);
       if (!skipLogo && logo) {
         localStorage.setItem("businessLogo", logo);
@@ -109,12 +118,49 @@ function uploadLogo(file) {
         localStorage.removeItem("businessLogo");
       }
 
-      // 4️⃣ Dashboard
       navigate("/", { replace: true });
     } finally {
       setSaving(false);
     }
   }
+
+  /* ------------------ SKIP ENTIRE ONBOARDING ------------------ */
+ async function skipToDashboard() {
+  if (!user || saving) return;
+
+  setSaving(true);
+
+  try {
+    const fallbackName =
+      user.displayName ||
+      user.email?.split("@")[0] ||
+      "My Business";
+
+    const payload = {
+      profile: {
+        businessName: fallbackName,
+        logo: "",
+        createdAt: new Date(),
+      },
+    };
+
+    // Persist
+    await setDoc(doc(db, "users", user.uid), payload);
+
+    // Update context
+    setBusinessName(fallbackName);
+    setLogo(null);
+
+    // Cache
+    localStorage.setItem("businessName", fallbackName);
+    localStorage.removeItem("businessLogo");
+
+    navigate("/", { replace: true });
+  } finally {
+    setSaving(false);
+  }
+}
+
 
   const displayLogo =
     logo ||
@@ -124,19 +170,11 @@ function uploadLogo(file) {
     )}`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div
-        className="
-          w-full max-w-md p-6 rounded-3xl
-          backdrop-blur-xl border shadow-lg space-y-6
-          bg-white/85 dark:bg-white/5
-          border-black/5 dark:border-white/10
-          animate-scale-in
-        "
-      >
+    <div className="min-h-screen w-full flex items-center justify-center px-4 bg-[var(--bg-gradient)]">
+      <div className="w-full max-w-md p-6 rounded-3xl backdrop-blur-xl border shadow-lg space-y-6 bg-white/85 dark:bg-white/5">
         <h1 className="text-xl font-semibold">Set up your business</h1>
 
-        {/* LOGO PICKER */}
+        {/* LOGO */}
         <div className="space-y-3">
           <p className="text-sm opacity-70">Business logo</p>
 
@@ -154,9 +192,7 @@ function uploadLogo(file) {
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={(e) =>
-                    uploadLogo(e.target.files[0])
-                  }
+                  onChange={(e) => uploadLogo(e.target.files[0])}
                 />
               </label>
 
@@ -171,42 +207,36 @@ function uploadLogo(file) {
             </div>
           </div>
 
-          {/* PROGRESS BAR */}
           {uploading && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="w-full h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[var(--accent)] transition-all"
+                  className="h-full bg-[var(--accent)] transition-all duration-200"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <p className="text-xs opacity-60">
-                Uploading… {uploadProgress}%
-              </p>
+
+              <div className="flex justify-between text-xs opacity-70">
+                <span>Uploading… {uploadProgress}%</span>
+                <button
+                  onClick={cancelUpload}
+                  className="text-red-500 hover:underline"
+                >
+                  Skip upload
+                </button>
+              </div>
             </div>
           )}
-
-          <p className="text-xs opacity-60">
-            You can skip this and add it later from settings.
-          </p>
         </div>
 
         {/* BUSINESS NAME */}
         <div className="space-y-2">
-          <label className="text-sm opacity-70">
-            Business name
-          </label>
-
+          <label className="text-sm opacity-70">Business name</label>
           <input
             value={businessName}
-            onChange={(e) =>
-              setLocalBusinessName(e.target.value)
-            }
+            onChange={(e) => setLocalBusinessName(e.target.value)}
             placeholder="Your business name"
-            className="
-              w-full p-3 rounded-xl outline-none
-              bg-black/5 dark:bg-white/10
-            "
+            className="w-full p-3 rounded-xl bg-black/5 dark:bg-white/10 outline-none"
           />
         </div>
 
@@ -214,39 +244,31 @@ function uploadLogo(file) {
         <div className="space-y-3">
           <button
             onClick={() => saveProfile()}
-            disabled={!businessName || uploading || saving}
-            className="
-              w-full py-3 rounded-xl
-              bg-[var(--accent)] text-white
-              font-medium
-              disabled:opacity-60
-              active:scale-95 transition
-            "
+            disabled={!businessName || saving}
+            className="w-full py-3 rounded-xl bg-[var(--accent)] text-white font-medium disabled:opacity-60"
           >
-            {saving
-              ? "Setting up…"
-              : uploading
-              ? "Uploading logo…"
-              : "Continue"}
+            {saving ? "Setting up…" : "Continue"}
           </button>
 
           {businessName && (
             <button
               onClick={() => saveProfile({ skipLogo: true })}
-              disabled={uploading || saving}
-              className="
-                w-full py-2 rounded-xl
-                bg-black/5 dark:bg-white/10
-                text-sm
-                active:scale-95 transition
-              "
+              disabled={saving}
+              className="w-full py-2 rounded-xl bg-black/5 dark:bg-white/10 text-sm"
             >
               Skip logo for now
             </button>
           )}
+
+          {/* NEW: SKIP TO DASHBOARD */}
+          <button
+            onClick={skipToDashboard}
+            className="w-full py-2 rounded-xl text-sm opacity-70 hover:opacity-100"
+          >
+            Skip setup and go to dashboard
+          </button>
         </div>
       </div>
     </div>
   );
 }
-
