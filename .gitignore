@@ -30,6 +30,8 @@ build/
 .env.*.local
 
 # Firebase (never commit secrets)
+# Firebase config (client)
+src/firebase.js
 .firebase/
 firebaserc
 firebase-debug.log*
