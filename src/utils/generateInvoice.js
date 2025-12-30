@@ -1,36 +1,51 @@
+
+
 import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 export function generateInvoicePDF({ business, order, invoice }) {
-  const pdf = new jsPDF();
+  const doc = new jsPDF();
 
-  pdf.setFontSize(18);
-  pdf.text(business.name, 14, 20);
+  // header
+  doc.setFontSize(18);
+  doc.text(business.name || "Invoice", 14, 18);
 
-  pdf.setFontSize(12);
-  pdf.text(`Invoice #: ${invoice.invoiceNumber}`, 14, 30);
-  pdf.text(`Customer: ${order.customer}`, 14, 38);
-  pdf.text(`Date: ${new Date().toLocaleDateString()}`, 14, 46);
+  doc.setFontSize(11);
+  doc.text(`Invoice No: ${invoice.invoiceNumber}`, 14, 26);
+  doc.text(
+    `Date: ${new Date().toLocaleDateString()}`,
+    14,
+    32
+  );
 
-  pdf.line(14, 50, 196, 50);
+  // customer
+  doc.text(`Customer: ${order.customer}`, 14, 44);
+  doc.text(`City: ${order.city || "-"}`, 14, 50);
 
-  let y = 60;
+  // table
+  doc.autoTable({
+    startY: 60,
+    head: [["Item", "Amount"]],
+    body: [[order.product, `₹${order.total}`]],
+  });
 
-  pdf.text("Item", 14, y);
-  pdf.text("Amount", 160, y);
-  y += 10;
+  const y = doc.lastAutoTable.finalY + 10;
 
-  pdf.text(order.product, 14, y);
-  pdf.text(`₹${order.total}`, 160, y);
+  doc.text(`Total: ₹${order.total}`, 14, y);
+  doc.text(`Paid: ₹${order.paid}`, 14, y + 6);
+  doc.text(
+    `Due: ₹${order.total - order.paid}`,
+    14,
+    y + 12
+  );
 
-  y += 15;
+  // footer
+  doc.setFontSize(10);
+  doc.text(
+    "Thank you for your business",
+    14,
+    285
+  );
 
-  pdf.line(14, y, 196, y);
-  y += 10;
-
-  pdf.text(`Paid: ₹${order.paid}`, 14, y);
-  y += 8;
-  pdf.text(`Due: ₹${order.total - order.paid}`, 14, y);
-
-  return pdf;
+  return doc;
 }
-
