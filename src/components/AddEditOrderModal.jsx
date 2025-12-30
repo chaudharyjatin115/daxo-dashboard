@@ -1,167 +1,3 @@
-// import {
-//   User,
-//   ShoppingBag,
-//   MapPin,
-//   IndianRupee,
-//   Calendar,
-//   StickyNote,
-//   X,
-// } from "lucide-react";
-// import { useEffect, useState } from "react";
-// import {
-//   collection,
-//   addDoc,
-//   updateDoc,
-//   doc,
-//   serverTimestamp,
-// } from "firebase/firestore";
-// import { db } from "../firebase";
-// import { useAuth } from "../context/AuthContext";
-
-// export default function AddEditOrderModal({ order = {}, onClose }) {
-//   const { user } = useAuth();
-
-//   const [form, setForm] = useState({
-//     customer: order.customer || "",
-//     product: order.product || "",
-//     city: order.city || "",
-//     total: order.total ?? "",
-//     paid: order.paid ?? "",
-//     dueDate: order.dueDate || "",
-//     note: order.note || "",
-//   });
-
-//   const [saving, setSaving] = useState(false);
-
-//   useEffect(() => {
-//     const onEsc = (e) => e.key === "Escape" && onClose();
-//     window.addEventListener("keydown", onEsc);
-//     return () => window.removeEventListener("keydown", onEsc);
-//   }, [onClose]);
-
-//   const update = (key, value) =>
-//     setForm((prev) => ({ ...prev, [key]: value }));
-
-//   async function submit() {
-//     if (!form.customer || !form.product || !form.total) return;
-
-//     setSaving(true);
-
-//     const total = Number(form.total);
-//     const paid = Number(form.paid || 0);
-//     const status = paid >= total ? "paid" : "pending";
-
-//     const payload = {
-//       customer: form.customer,
-//       product: form.product,
-//       city: form.city,
-//       total,
-//       paid,
-//       status,
-//       dueDate: form.dueDate,
-//       note: form.note,
-//       updatedAt: serverTimestamp(),
-//     };
-
-//     try {
-//       if (order.id) {
-//         await updateDoc(
-//           doc(db, "users", user.uid, "orders", order.id),
-//           payload
-//         );
-//       } else {
-//         await addDoc(
-//           collection(db, "users", user.uid, "orders"),
-//           {
-//             ...payload,
-//             createdAt: serverTimestamp(),
-//           }
-//         );
-//       }
-//       onClose();
-//     } catch (e) {
-//       alert(e.message);
-//     }
-
-//     setSaving(false);
-//   }
-
-//   return (
-//     <div className="fixed inset-0 z-50 flex items-center justify-center">
-//       <div
-//         onClick={onClose}
-//         className="absolute inset-0 bg-black/40 backdrop-blur-md"
-//       />
-
-//       <div
-//         className="
-//           relative w-[360px] sm:w-[400px]
-//           rounded-2xl p-6 space-y-4
-//           backdrop-blur-xl shadow-2xl border
-//           animate-scale-in
-//         "
-//         style={{
-//           background: "var(--card-bg)",
-//           borderColor: "var(--card-border)",
-//         }}
-//       >
-//         <div className="flex items-center justify-between">
-//           <div className="font-semibold text-lg">
-//             {order.id ? "Edit Order" : "New Order"}
-//           </div>
-//           <button
-//             onClick={onClose}
-//             className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10"
-//           >
-//             <X size={18} />
-//           </button>
-//         </div>
-
-//         <Field Icon={User} placeholder="Customer name" value={form.customer} onChange={(v) => update("customer", v)} />
-//         <Field Icon={ShoppingBag} placeholder="Ordered items" value={form.product} onChange={(v) => update("product", v)} />
-//         <Field Icon={MapPin} placeholder="Delivery location" value={form.city} onChange={(v) => update("city", v)} />
-//         <Field Icon={IndianRupee} type="number" placeholder="Total amount" value={form.total} onChange={(v) => update("total", v)} />
-//         <Field Icon={IndianRupee} type="number" placeholder="Paid amount" value={form.paid} onChange={(v) => update("paid", v)} />
-//         <Field Icon={Calendar} type="date" value={form.dueDate} onChange={(v) => update("dueDate", v)} />
-//         <Field Icon={StickyNote} placeholder="Add a note (optional)" value={form.note} onChange={(v) => update("note", v)} textarea />
-
-//         <div className="flex gap-3 pt-2">
-//           <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-black/5 dark:bg-white/10">
-//             Cancel
-//           </button>
-//           <button onClick={submit} disabled={saving} className="flex-1 py-2 rounded-xl accent-bg">
-//             {saving ? "Saving…" : "Save"}
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function Field({ Icon, placeholder, value, onChange, type = "text", textarea = false }) {
-//   return (
-//     <div className="flex items-center gap-3 rounded-xl px-3 py-2 bg-black/5 dark:bg-white/10">
-//       <Icon size={16} className="icon-muted" />
-//       {textarea ? (
-//         <textarea
-//           rows={2}
-//           value={value}
-//           placeholder={placeholder}
-//           onChange={(e) => onChange(e.target.value)}
-//           className="w-full bg-transparent outline-none resize-none text-sm"
-//         />
-//       ) : (
-//         <input
-//           type={type}
-//           value={value}
-//           placeholder={placeholder}
-//           onChange={(e) => onChange(e.target.value)}
-//           className="w-full bg-transparent outline-none text-sm"
-//         />
-//       )}
-//     </div>
-//   );
-// }
 import {
   User,
   ShoppingBag,
@@ -185,6 +21,9 @@ import { useAuth } from "../context/AuthContext";
 export default function AddEditOrderModal({ order = {}, onClose }) {
   const { user } = useAuth();
 
+  const isEdit = Boolean(order.id);
+  const isLocked = order.status === "paid"; // paid orders are immutable
+
   const [form, setForm] = useState({
     customer: order.customer || "",
     product: order.product || "",
@@ -197,17 +36,20 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
 
   const [saving, setSaving] = useState(false);
 
+  /* close on esc */
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, [onClose]);
 
-  const update = (key, value) =>
+  function update(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function submit() {
-    if (!form.customer || !form.product || !form.total) return;
+    if (!user || isLocked) return;
+    if (!form.customer || !form.product || form.total === "") return;
 
     setSaving(true);
 
@@ -216,19 +58,19 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
     const status = paid >= total ? "paid" : "pending";
 
     const payload = {
-      customer: form.customer,
-      product: form.product,
-      city: form.city,
+      customer: form.customer.trim(),
+      product: form.product.trim(),
+      city: form.city.trim(),
       total,
       paid,
       status,
       dueDate: form.dueDate,
-      note: form.note,
+      note: form.note.trim(),
       updatedAt: serverTimestamp(),
     };
 
     try {
-      if (order.id) {
+      if (isEdit) {
         await updateDoc(
           doc(db, "users", user.uid, "orders", order.id),
           payload
@@ -245,18 +87,20 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
       onClose();
     } catch (e) {
       alert(e.message);
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* backdrop */}
       <div
         onClick={onClose}
         className="absolute inset-0 bg-black/40 backdrop-blur-md"
       />
 
+      {/* modal */}
       <div
         className="
           relative w-[360px] sm:w-[400px]
@@ -269,9 +113,10 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
           borderColor: "var(--card-border)",
         }}
       >
+        {/* header */}
         <div className="flex items-center justify-between">
           <div className="font-semibold text-lg">
-            {order.id ? "Edit Order" : "New Order"}
+            {isEdit ? "Edit Order" : "New Order"}
           </div>
           <button
             onClick={onClose}
@@ -281,19 +126,85 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
           </button>
         </div>
 
-        <Field icon={User} placeholder="Customer name" value={form.customer} onChange={(v) => update("customer", v)} />
-        <Field icon={ShoppingBag} placeholder="Ordered items" value={form.product} onChange={(v) => update("product", v)} />
-        <Field icon={MapPin} placeholder="Delivery location" value={form.city} onChange={(v) => update("city", v)} />
-        <Field icon={IndianRupee} type="number" placeholder="Total amount" value={form.total} onChange={(v) => update("total", v)} />
-        <Field icon={IndianRupee} type="number" placeholder="Paid amount" value={form.paid} onChange={(v) => update("paid", v)} />
-        <Field icon={Calendar} type="date" value={form.dueDate} onChange={(v) => update("dueDate", v)} />
-        <Field icon={StickyNote} placeholder="Add a note (optional)" value={form.note} onChange={(v) => update("note", v)} textarea />
+        {isLocked && (
+          <div className="text-xs text-red-500">
+            this order is paid and cannot be edited
+          </div>
+        )}
 
+        <Field
+          icon={User}
+          placeholder="Customer name"
+          value={form.customer}
+          disabled={isLocked}
+          onChange={(v) => update("customer", v)}
+        />
+
+        <Field
+          icon={ShoppingBag}
+          placeholder="Ordered items"
+          value={form.product}
+          disabled={isLocked}
+          onChange={(v) => update("product", v)}
+        />
+
+        <Field
+          icon={MapPin}
+          placeholder="Delivery location"
+          value={form.city}
+          disabled={isLocked}
+          onChange={(v) => update("city", v)}
+        />
+
+        <Field
+          icon={IndianRupee}
+          type="number"
+          placeholder="Total amount"
+          value={form.total}
+          disabled={isLocked}
+          onChange={(v) => update("total", v)}
+        />
+
+        <Field
+          icon={IndianRupee}
+          type="number"
+          placeholder="Paid amount"
+          value={form.paid}
+          disabled={isLocked}
+          onChange={(v) => update("paid", v)}
+        />
+
+        <Field
+          icon={Calendar}
+          type="date"
+          value={form.dueDate}
+          disabled={isLocked}
+          onChange={(v) => update("dueDate", v)}
+        />
+
+        <Field
+          icon={StickyNote}
+          placeholder="Add a note (optional)"
+          value={form.note}
+          disabled={isLocked}
+          onChange={(v) => update("note", v)}
+          textarea
+        />
+
+        {/* actions */}
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-black/5 dark:bg-white/10">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-xl bg-black/5 dark:bg-white/10"
+          >
             Cancel
           </button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 rounded-xl accent-bg">
+
+          <button
+            onClick={submit}
+            disabled={saving || isLocked}
+            className="flex-1 py-2 rounded-xl accent-bg disabled:opacity-60"
+          >
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -302,10 +213,19 @@ export default function AddEditOrderModal({ order = {}, onClose }) {
   );
 }
 
-/* ---------------- FIELD ---------------- */
+/* field */
 
-function Field({ icon, placeholder, value, onChange, type = "text", textarea = false }) {
+function Field({
+  icon,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  textarea = false,
+  disabled = false,
+}) {
   const Icon = icon;
+
   return (
     <div className="flex items-center gap-3 rounded-xl px-3 py-2 bg-black/5 dark:bg-white/10">
       <Icon size={16} className="icon-muted" />
@@ -313,17 +233,19 @@ function Field({ icon, placeholder, value, onChange, type = "text", textarea = f
         <textarea
           rows={2}
           value={value}
+          disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent outline-none resize-none text-sm"
+          className="w-full bg-transparent outline-none resize-none text-sm disabled:opacity-60"
         />
       ) : (
         <input
           type={type}
           value={value}
+          disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent outline-none text-sm"
+          className="w-full bg-transparent outline-none text-sm disabled:opacity-60"
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+
 // import { createContext, useContext, useEffect, useState } from "react";
 // import { auth } from "../firebase";
 // import {
@@ -15,38 +16,29 @@
 // const AuthContext = createContext(null);
 
 // /* ------------------ HELPERS ------------------ */
-// function isIOS() {
-//   return (
-//     /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-//     !window.MSStream
-//   );
+// function isMobile() {
+//   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 // }
 
 // export function AuthProvider({ children }) {
 //   const [user, setUser] = useState(null);
 //   const [loading, setLoading] = useState(true);
 
-//   /* ------------------ AUTH STATE ------------------ */
+//   /* ------------------ AUTH STATE LISTENER ------------------ */
 //   useEffect(() => {
-//     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+//     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
 //       setUser(firebaseUser);
 //       setLoading(false);
 //     });
 
-//     return unsub;
+//     return unsubscribe;
 //   }, []);
 
-//   /* ------------------ REDIRECT RESULT (CRITICAL) ------------------ */
+//   /* ------------------ HANDLE REDIRECT LOGIN ------------------ */
 //   useEffect(() => {
-//     getRedirectResult(auth)
-//       .then((result) => {
-//         if (result?.user) {
-//           setUser(result.user);
-//         }
-//       })
-//       .finally(() => {
-//         setLoading(false);
-//       });
+//     getRedirectResult(auth).catch(() => {
+//       // No redirect happened – ignore safely
+//     });
 //   }, []);
 
 //   /* ------------------ EMAIL LOGIN ------------------ */
@@ -62,28 +54,26 @@
 //       password
 //     );
 
+//     // 🔐 Always send verification for email signup
 //     await sendEmailVerification(cred.user);
+
 //     return cred;
 //   }
 
-//   /* ------------------ GOOGLE LOGIN (BULLETPROOF) ------------------ */
+//   /* ------------------ GOOGLE LOGIN ------------------ */
 //   async function loginWithGoogle() {
 //     const provider = new GoogleAuthProvider();
 //     provider.setCustomParameters({
 //       prompt: "select_account",
 //     });
 
-//     try {
-//       if (isIOS()) {
-//         await signInWithRedirect(auth, provider);
-//         return;
-//       }
-
-//       await signInWithPopup(auth, provider);
-//     } catch (err) {
-//       // 🔥 fallback for blocked popup / privacy mode
+//     if (isMobile()) {
+//       // ✅ REQUIRED for mobile browsers
 //       await signInWithRedirect(auth, provider);
+//       return;
 //     }
+
+//     return signInWithPopup(auth, provider);
 //   }
 
 //   /* ------------------ LOGOUT ------------------ */
@@ -131,7 +121,7 @@ import {
 
 const AuthContext = createContext(null);
 
-/* ------------------ HELPERS ------------------ */
+/* small helper */
 function isMobile() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
@@ -140,7 +130,29 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ------------------ AUTH STATE LISTENER ------------------ */
+  /* handle redirect result first (important for mobile) */
+  useEffect(() => {
+    let mounted = true;
+
+    async function handleRedirect() {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user && mounted) {
+          setUser(result.user);
+        }
+      } catch {
+        // no redirect, safe to ignore
+      }
+    }
+
+    handleRedirect();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /* auth state listener */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
@@ -150,19 +162,12 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  /* ------------------ HANDLE REDIRECT LOGIN ------------------ */
-  useEffect(() => {
-    getRedirectResult(auth).catch(() => {
-      // No redirect happened – ignore safely
-    });
-  }, []);
-
-  /* ------------------ EMAIL LOGIN ------------------ */
-  async function login(email, password) {
+  /* email login */
+  function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
-  /* ------------------ EMAIL SIGNUP ------------------ */
+  /* email signup */
   async function signup(email, password) {
     const cred = await createUserWithEmailAndPassword(
       auth,
@@ -170,21 +175,16 @@ export function AuthProvider({ children }) {
       password
     );
 
-    // 🔐 Always send verification for email signup
     await sendEmailVerification(cred.user);
-
     return cred;
   }
 
-  /* ------------------ GOOGLE LOGIN ------------------ */
+  /* google login */
   async function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: "select_account",
-    });
+    provider.setCustomParameters({ prompt: "select_account" });
 
     if (isMobile()) {
-      // ✅ REQUIRED for mobile browsers
       await signInWithRedirect(auth, provider);
       return;
     }
@@ -192,9 +192,9 @@ export function AuthProvider({ children }) {
     return signInWithPopup(auth, provider);
   }
 
-  /* ------------------ LOGOUT ------------------ */
-  async function logout() {
-    await signOut(auth);
+  /* logout */
+  function logout() {
+    return signOut(auth);
   }
 
   return (
@@ -213,7 +213,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-/* ------------------ HOOK ------------------ */
+/* hook */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
