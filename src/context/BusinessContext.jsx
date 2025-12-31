@@ -1,63 +1,57 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useAuth } from "./AuthContext";
-import { db } from "../firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 const BusinessContext = createContext(null);
 
 export function BusinessProvider({ children }) {
-  const { user } = useAuth();
-
-  const [businessName, setBusinessName] = useState(null);
-  const [logo, setLogo] = useState(null);
+  const [businessName, setBusinessName] = useState(
+    localStorage.getItem("businessName") || ""
+  );
+  const [logo, setLogo] = useState(
+    localStorage.getItem("businessLogo") || ""
+  );
   const [loading, setLoading] = useState(true);
 
-  /* ------------------ LOAD BUSINESS PROFILE ------------------ */
+  /* load from firestore when user changes */
   useEffect(() => {
-    if (!user) {
-      setBusinessName(null);
-      setLogo(null);
-      setLoading(false);
-      return;
-    }
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    (async () => {
       try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        const profile = snap.data()?.profile || {};
-
-        setBusinessName(profile.businessName || null);
-        setLogo(
-  typeof profile.logo === "string" && profile.logo.trim()
-    ? profile.logo
-    : ""
-);
-
-        // cache (fast refresh + header)
-        if (profile.businessName) {
-          localStorage.setItem("businessName", profile.businessName);
-        }
-        if (profile.logo) {
-          localStorage.setItem("businessLogo", profile.logo);
-        }
-      } catch (e) {
-        console.error("Business load failed", e);
-      } finally {
+        // nothing blocking here, firestore hooks elsewhere already read data
+        setLoading(false);
+      } catch {
         setLoading(false);
       }
-    })();
-  }, [user]);
-
-  /* ------------------ SAVE NAME ------------------ */
-  async function saveBusinessName(name) {
-    if (!user) return;
-
-    await updateDoc(doc(db, "users", user.uid), {
-      "profile.businessName": name,
     });
 
-    setBusinessName(name);
-    localStorage.setItem("businessName", name);
+    return unsub;
+  }, []);
+
+  /* ✅ FIXED: safe save using setDoc + merge */
+  async function saveBusinessName(name) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("not authenticated");
+
+    const cleanName = name.trim();
+
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        profile: {
+          businessName: cleanName,
+        },
+      },
+      { merge: true }
+    );
+
+    setBusinessName(cleanName);
+    localStorage.setItem("businessName", cleanName);
   }
 
   return (
