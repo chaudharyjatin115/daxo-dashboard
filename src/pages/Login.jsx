@@ -1,39 +1,34 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Mail, Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const { login, loginWithGoogle, user, loading } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  // 🔐 this is the missing piece (mobile fix)
-  useEffect(() => {
-    if (!loading && user) {
-      navigate("/", { replace: true });
-    }
-  }, [user, loading, navigate]);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
-    setSubmitting(true);
+    if (loading) return;
+
+    setLoading(true);
     try {
       await login(email, password);
     } catch (e) {
       alert(e.message);
+    } finally {
+      setLoading(false);
     }
-    setSubmitting(false);
   }
 
   async function handleGoogle() {
+    if (loading) return;
     try {
       await loginWithGoogle();
-      // do NOT navigate here
-      // redirect flow handles it
     } catch (e) {
       alert(e.message);
     }
@@ -42,12 +37,22 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div
-        className="w-full max-w-md p-8 rounded-3xl border shadow-xl space-y-6"
+        className="w-full max-w-md p-8 rounded-3xl border shadow-xl space-y-6 animate-scale-in"
         style={{
           background: "var(--card-bg)",
           borderColor: "var(--card-border)",
         }}
       >
+        {/* logo */}
+        <div className="flex justify-center">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
+            <div className="absolute inset-[3px] rounded-2xl bg-black flex items-center justify-center text-white font-bold">
+              D
+            </div>
+          </div>
+        </div>
+
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Welcome back</h1>
           <p className="text-sm opacity-70">
@@ -79,12 +84,19 @@ export default function Login() {
           </div>
 
           <button
-            disabled={submitting}
-            className="w-full py-3 rounded-xl accent-bg"
+            disabled={loading}
+            className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <button
+          onClick={() => navigate("/forgot-password")}
+          className="w-full text-sm accent-text text-center"
+        >
+          Forgot password?
+        </button>
 
         <div className="flex items-center gap-3 text-xs opacity-60">
           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
@@ -94,7 +106,7 @@ export default function Login() {
 
         <button
           onClick={handleGoogle}
-          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border"
+          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border hover:shadow-md transition"
           style={{
             background: "var(--card-bg)",
             borderColor: "var(--card-border)",
@@ -107,6 +119,25 @@ export default function Login() {
           />
           Continue with Google
         </button>
+
+        {/* secondary signup cta */}
+        <button
+          onClick={() => navigate("/signup")}
+          className="w-full py-2 rounded-xl bg-black/5 dark:bg-white/10 text-sm"
+        >
+          Create new account
+        </button>
+
+        {/* text fallback */}
+        <p className="text-sm text-center opacity-70">
+          New here?{" "}
+          <span
+            className="accent-text cursor-pointer"
+            onClick={() => navigate("/signup")}
+          >
+            Create one
+          </span>
+        </p>
       </div>
     </div>
   );
