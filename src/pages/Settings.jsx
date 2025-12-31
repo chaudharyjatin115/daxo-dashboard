@@ -37,6 +37,7 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+/* safe logo resolver */
 function resolveLogo({ logo, user, businessName }) {
   if (typeof logo === "string" && logo.trim()) return logo;
   if (user?.photoURL) return user.photoURL;
@@ -68,15 +69,15 @@ export default function Settings() {
   const [uploadTask, setUploadTask] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* apply accent */
+  /* accent color */
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", accent);
     localStorage.setItem("accent", accent);
   }, [accent]);
 
-  /* resume delete after google redirect (mobile) */
+  /* resume delete after mobile reauth */
   useEffect(() => {
-    const resume = async () => {
+    const resumeDelete = async () => {
       if (sessionStorage.getItem("PENDING_DELETE") !== "1") return;
       sessionStorage.removeItem("PENDING_DELETE");
 
@@ -88,23 +89,33 @@ export default function Settings() {
         await deleteObject(ref(storage, `logos/${uid}`)).catch(() => {});
         localStorage.clear();
         navigate("/login", { replace: true });
-      } catch {
+      } catch (err) {
+        console.error(err);
         alert("please try deleting your account again");
       }
     };
 
-    resume();
+    resumeDelete();
   }, [navigate]);
 
+  /* save business name (fixed: no infinite saving) */
   async function handleSaveBusinessName() {
-    if (!user) return;
+    if (!user || saving) return;
+
     setSaving(true);
-    await saveBusinessName(businessName || "");
-    setSaving(false);
+    try {
+      await saveBusinessName(businessName?.trim() || "");
+    } catch (err) {
+      console.error(err);
+      alert("failed to save business name");
+    } finally {
+      setSaving(false);
+    }
   }
 
+  /* logo upload */
   function uploadLogo(file) {
-    if (!file || !user || deleting) return;
+    if (!file || !user || uploading) return;
 
     if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
       alert("logo must be under 2 mb");
@@ -114,20 +125,23 @@ export default function Settings() {
     const logoRef = ref(storage, `logos/${user.uid}`);
     const task = uploadBytesResumable(logoRef, file);
 
-    setUploading(true);
-    setUploadProgress(0);
     setUploadTask(task);
+    setUploading(true);
+    setUploadProgress(1);
 
     task.on(
       "state_changed",
       (snap) => {
-        if (!snap.totalBytes) return;
-        const p = Math.round(
+        const percent = Math.round(
           (snap.bytesTransferred / snap.totalBytes) * 100
         );
-        setUploadProgress(p > 95 ? 95 : p);
+        setUploadProgress(percent);
       },
-      () => {
+      (err) => {
+        if (err.code !== "storage/canceled") {
+          console.error(err);
+          alert("logo upload failed");
+        }
         setUploading(false);
         setUploadTask(null);
       },
@@ -139,40 +153,43 @@ export default function Settings() {
         });
 
         setLogo(url);
-        setUploadProgress(100);
 
         setTimeout(() => {
           setUploading(false);
           setUploadProgress(0);
           setUploadTask(null);
-        }, 300);
+        }, 400);
       }
     );
   }
 
   function cancelUpload() {
-    if (!uploadTask) return;
-    uploadTask.cancel();
+    uploadTask?.cancel();
     setUploading(false);
     setUploadProgress(0);
     setUploadTask(null);
   }
 
+  /* delete logo */
   async function deleteLogo() {
     if (!user || uploading) return;
 
     setUploading(true);
-    await deleteObject(ref(storage, `logos/${user.uid}`)).catch(() => {});
-    await updateDoc(doc(db, "users", user.uid), { "profile.logo": "" });
-    setLogo("");
-    setUploading(false);
+    try {
+      await deleteObject(ref(storage, `logos/${user.uid}`)).catch(() => {});
+      await updateDoc(doc(db, "users", user.uid), { "profile.logo": "" });
+      setLogo("");
+    } finally {
+      setUploading(false);
+    }
   }
 
+  /* delete account */
   async function handleDeleteAccount() {
     if (!user || deleting) return;
 
     const ok = window.confirm(
-      "this will permanently delete your account and data.\n\ncontinue?"
+      "this will permanently delete your account and all data.\n\ncontinue?"
     );
     if (!ok) return;
 
@@ -202,14 +219,14 @@ export default function Settings() {
             await reauthenticateWithPopup(currentUser, provider);
           }
         } else {
-          const password = window.prompt("enter password to confirm");
-          if (!password) throw new Error();
+          const password = window.prompt("enter password to continue");
+          if (!password) throw new Error("password required");
 
-          const cred = EmailAuthProvider.credential(
+          const credential = EmailAuthProvider.credential(
             currentUser.email,
             password
           );
-          await reauthenticateWithCredential(currentUser, cred);
+          await reauthenticateWithCredential(currentUser, credential);
         }
 
         await deleteUser(currentUser);
@@ -219,7 +236,8 @@ export default function Settings() {
       await deleteObject(ref(storage, `logos/${uid}`)).catch(() => {});
       localStorage.clear();
       navigate("/login", { replace: true });
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert("account deletion failed");
     } finally {
       setDeleting(false);
@@ -233,28 +251,38 @@ export default function Settings() {
       <div className="max-w-md mx-auto space-y-6">
         <Header />
 
-        <div className="p-6 rounded-3xl border shadow-lg space-y-6 backdrop-blur-xl bg-white dark:bg-white/5">
-          <h1 className="text-xl font-semibold">Settings</h1>
+        <div
+          className="
+            p-6 rounded-3xl
+            backdrop-blur-xl border shadow-lg
+            space-y-6
+          "
+          style={{
+            background: "var(--card-bg)",
+            borderColor: "var(--card-border)",
+          }}
+        >
+          <h1 className="text-xl font-semibold">settings</h1>
 
           {/* theme */}
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm font-medium">Theme</p>
+              <p className="text-sm font-medium">theme</p>
               <p className="text-xs opacity-70">
-                Currently using {theme} mode
+                currently using {theme} mode
               </p>
             </div>
             <button
               onClick={toggleTheme}
               className="px-4 py-2 rounded-xl bg-[var(--accent)] text-white"
             >
-              {theme === "dark" ? "Light" : "Dark"}
+              {theme === "dark" ? "light" : "dark"}
             </button>
           </div>
 
           {/* business name */}
           <div className="space-y-2">
-            <label className="text-sm opacity-70">Business name</label>
+            <label className="text-sm opacity-70">business name</label>
             <input
               value={businessName || ""}
               onChange={(e) => setBusinessName(e.target.value)}
@@ -265,23 +293,24 @@ export default function Settings() {
               disabled={saving}
               className="w-full py-2 rounded-xl bg-[var(--accent)] text-white"
             >
-              {saving ? "Saving…" : "Save name"}
+              {saving ? "saving…" : "save name"}
             </button>
           </div>
 
           {/* logo */}
           <div className="space-y-3">
-            <label className="text-sm opacity-70">Business logo</label>
+            <label className="text-sm opacity-70">business logo</label>
 
             <div className="flex items-center gap-4">
               <img
                 src={displayLogo}
+                alt="logo"
                 className="w-14 h-14 rounded-xl object-cover"
               />
 
               <div className="flex flex-col gap-2">
                 <label className="text-sm cursor-pointer text-[var(--accent)]">
-                  Change logo
+                  change logo
                   <input
                     type="file"
                     accept="image/*"
@@ -295,7 +324,7 @@ export default function Settings() {
                     onClick={deleteLogo}
                     className="text-xs text-red-500"
                   >
-                    Remove logo
+                    remove logo
                   </button>
                 )}
               </div>
@@ -310,12 +339,12 @@ export default function Settings() {
                   />
                 </div>
                 <div className="flex justify-between text-xs opacity-70">
-                  <span>Uploading… {uploadProgress}%</span>
+                  <span>uploading… {uploadProgress}%</span>
                   <button
                     onClick={cancelUpload}
-                    className="text-red-500"
+                    className="text-red-500 hover:underline"
                   >
-                    Cancel
+                    cancel
                   </button>
                 </div>
               </div>
@@ -324,13 +353,13 @@ export default function Settings() {
 
           {/* accent */}
           <div>
-            <p className="text-sm mb-2">Brand accent color</p>
+            <p className="text-sm mb-2">brand accent</p>
             <div className="flex gap-3">
               {COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => setAccent(c)}
-                  className={`w-8 h-8 rounded-full ${
+                  className={`w-8 h-8 rounded-full border-2 ${
                     accent === c ? "scale-110" : "opacity-70"
                   }`}
                   style={{ background: c }}
@@ -341,15 +370,16 @@ export default function Settings() {
 
           {/* user */}
           <div className="text-sm opacity-80">
-            <p>👤 {user?.displayName || "Email user"}</p>
+            <p>👤 {user?.displayName || "email user"}</p>
             <p>📧 {user?.email}</p>
           </div>
 
           <button
             onClick={logout}
+            disabled={deleting}
             className="w-full py-3 rounded-xl bg-red-500 text-white"
           >
-            Logout
+            logout
           </button>
 
           <button
@@ -357,7 +387,7 @@ export default function Settings() {
             disabled={deleting}
             className="w-full py-3 rounded-xl border border-red-500 text-red-600"
           >
-            {deleting ? "Deleting…" : "Delete my account"}
+            {deleting ? "deleting…" : "delete my account"}
           </button>
         </div>
       </div>
