@@ -1,30 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* redirect once auth state is ready */
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
+      // redirect handled by effect
     } catch (e) {
       alert(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleGoogle() {
     try {
       await loginWithGoogle();
+      // mobile redirect → effect handles navigation
     } catch (e) {
       alert(e.message);
     }
@@ -43,7 +54,7 @@ export default function Login() {
           borderColor: "var(--card-border)",
         }}
       >
-        {/* Animated Logo */}
+        {/* logo */}
         <div className="flex justify-center">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
@@ -61,25 +72,23 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          {/* Email */}
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
             <Mail className="text-purple-500" size={18} />
             <input
               type="email"
               placeholder="Email address"
-              className="w-full outline-none"
+              className="w-full outline-none bg-transparent"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          {/* Password */}
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
             <Lock className="text-indigo-500" size={18} />
             <input
               type="password"
               placeholder="Password"
-              className="w-full outline-none"
+              className="w-full outline-none bg-transparent"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -87,7 +96,7 @@ export default function Login() {
 
           <button
             disabled={loading}
-            className="w-full py-3 rounded-xl accent-bg font-medium"
+            className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
@@ -106,7 +115,6 @@ export default function Login() {
           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
         </div>
 
-        {/* Google button */}
         <button
           onClick={handleGoogle}
           className="
