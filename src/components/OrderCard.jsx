@@ -7,7 +7,7 @@ import {
   FileText,
   Trash2,
   CheckCircle,
-  MessageCircle,
+  Send,
 } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -24,17 +24,16 @@ export default function OrderCard({
   const [confirming, setConfirming] = useState(false);
 
   const due = order.total - order.paid;
+  const locked = order.invoiceLocked;
 
   async function remove() {
-    await deleteDoc(
-      doc(db, "users", user.uid, "orders", order.id)
-    );
+    await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
     setConfirming(false);
   }
 
   return (
     <>
-      <div className="rounded-2xl p-6 space-y-4 card">
+      <div className="rounded-2xl p-6 space-y-4 border shadow-sm">
         <div className="flex justify-between">
           <div className="font-semibold">
             📦 Order #{order.id.slice(0, 6)}
@@ -44,21 +43,17 @@ export default function OrderCard({
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <Row icon={User} text={order.customer} />
           <Row icon={MapPin} text={order.city} />
           <Row icon={ShoppingBag} text={order.product} />
-          <Row icon={Calendar} text={order.dueDate} />
+          <Row icon={Calendar} text={order.dueDate} danger />
         </div>
 
         <div className="flex gap-4 text-sm">
           <span>₹{order.total}</span>
-          <span className="text-green-500">
-            Paid ₹{order.paid}
-          </span>
-          <span className="text-red-500">
-            Due ₹{due}
-          </span>
+          <span className="text-green-500">Paid ₹{order.paid}</span>
+          <span className="text-red-500">Due ₹{due}</span>
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">
@@ -67,12 +62,12 @@ export default function OrderCard({
           <Action
             icon={FileText}
             label="Invoice"
-            onClick={onInvoice}
-            color="bg-blue-500"
+            onClick={locked ? null : onInvoice}
+            color={locked ? "bg-gray-400" : "bg-blue-500"}
           />
 
           <Action
-            icon={MessageCircle}
+            icon={Send}
             label="WhatsApp"
             onClick={onWhatsApp}
             color="bg-green-500"
@@ -86,11 +81,7 @@ export default function OrderCard({
           />
 
           {order.status === "paid" && (
-            <Action
-              icon={CheckCircle}
-              label="Paid"
-              color="bg-emerald-500"
-            />
+            <Action icon={CheckCircle} label="Paid" color="bg-emerald-500" />
           )}
         </div>
       </div>
@@ -101,14 +92,12 @@ export default function OrderCard({
             onClick={() => setConfirming(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="relative p-6 rounded-2xl space-y-4 card">
-            <h3 className="font-semibold text-lg">
-              Delete order?
-            </h3>
+          <div className="relative w-[320px] p-6 rounded-2xl space-y-4 bg-white">
+            <h3 className="font-semibold text-lg">Delete order?</h3>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirming(false)}
-                className="flex-1 py-2 rounded-xl bg-black/10"
+                className="flex-1 py-2 rounded-xl bg-gray-200"
               >
                 Cancel
               </button>
@@ -126,10 +115,10 @@ export default function OrderCard({
   );
 }
 
-function Row({ icon, text }) {
+function Row({ icon, text, danger }) {
   const Icon = icon;
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${danger ? "text-red-500" : ""}`}>
       <Icon size={16} />
       {text}
     </div>
@@ -141,6 +130,7 @@ function Action({ icon, label, color, onClick }) {
   return (
     <button
       onClick={onClick}
+      disabled={!onClick}
       className={`${color} text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm`}
     >
       <Icon size={16} />
