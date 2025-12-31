@@ -33,12 +33,10 @@ const COLORS = [
   "#0f766e",
 ];
 
-/* simple mobile check */
 function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-/* safe logo resolver */
 function resolveLogo({ logo, user, businessName }) {
   if (typeof logo === "string" && logo.trim()) return logo;
   if (user?.photoURL) return user.photoURL;
@@ -70,15 +68,15 @@ export default function Settings() {
   const [uploadTask, setUploadTask] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* accent sync */
+  /* apply accent */
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", accent);
     localStorage.setItem("accent", accent);
   }, [accent]);
 
-  /* resume delete after redirect (google on mobile) */
+  /* resume delete after google redirect (mobile) */
   useEffect(() => {
-    const resumeDelete = async () => {
+    const resume = async () => {
       if (sessionStorage.getItem("PENDING_DELETE") !== "1") return;
       sessionStorage.removeItem("PENDING_DELETE");
 
@@ -90,16 +88,14 @@ export default function Settings() {
         await deleteObject(ref(storage, `logos/${uid}`)).catch(() => {});
         localStorage.clear();
         navigate("/login", { replace: true });
-      } catch (err) {
-        console.error(err);
+      } catch {
         alert("please try deleting your account again");
       }
     };
 
-    resumeDelete();
+    resume();
   }, [navigate]);
 
-  /* save business name */
   async function handleSaveBusinessName() {
     if (!user) return;
     setSaving(true);
@@ -107,35 +103,33 @@ export default function Settings() {
     setSaving(false);
   }
 
-  /* logo upload with real progress */
   function uploadLogo(file) {
     if (!file || !user || deleting) return;
 
     if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
-      alert("logo must be under 2mb");
+      alert("logo must be under 2 mb");
       return;
     }
 
     const logoRef = ref(storage, `logos/${user.uid}`);
     const task = uploadBytesResumable(logoRef, file);
 
-    setUploadTask(task);
     setUploading(true);
     setUploadProgress(0);
+    setUploadTask(task);
 
     task.on(
       "state_changed",
       (snap) => {
-        const percent = Math.round(
+        if (!snap.totalBytes) return;
+        const p = Math.round(
           (snap.bytesTransferred / snap.totalBytes) * 100
         );
-        setUploadProgress(percent >= 95 ? 95 : percent);
+        setUploadProgress(p > 95 ? 95 : p);
       },
-      (err) => {
-        console.error(err);
+      () => {
         setUploading(false);
         setUploadTask(null);
-        alert("logo upload failed");
       },
       async () => {
         const url = await getDownloadURL(task.snapshot.ref);
@@ -151,7 +145,7 @@ export default function Settings() {
           setUploading(false);
           setUploadProgress(0);
           setUploadTask(null);
-        }, 400);
+        }, 300);
       }
     );
   }
@@ -164,7 +158,6 @@ export default function Settings() {
     setUploadTask(null);
   }
 
-  /* delete logo */
   async function deleteLogo() {
     if (!user || uploading) return;
 
@@ -175,12 +168,11 @@ export default function Settings() {
     setUploading(false);
   }
 
-  /* delete account */
   async function handleDeleteAccount() {
     if (!user || deleting) return;
 
     const ok = window.confirm(
-      "this will permanently delete your account and all data.\n\ncontinue?"
+      "this will permanently delete your account and data.\n\ncontinue?"
     );
     if (!ok) return;
 
@@ -195,11 +187,11 @@ export default function Settings() {
       } catch (err) {
         if (err.code !== "auth/requires-recent-login") throw err;
 
-        const isGoogleUser = currentUser.providerData.some(
+        const isGoogle = currentUser.providerData.some(
           (p) => p.providerId === "google.com"
         );
 
-        if (isGoogleUser) {
+        if (isGoogle) {
           const provider = new GoogleAuthProvider();
           sessionStorage.setItem("PENDING_DELETE", "1");
 
@@ -210,15 +202,14 @@ export default function Settings() {
             await reauthenticateWithPopup(currentUser, provider);
           }
         } else {
-          const password = window.prompt("enter password to confirm:");
-          if (!password) throw new Error("password required");
+          const password = window.prompt("enter password to confirm");
+          if (!password) throw new Error();
 
-          const credential = EmailAuthProvider.credential(
+          const cred = EmailAuthProvider.credential(
             currentUser.email,
             password
           );
-
-          await reauthenticateWithCredential(currentUser, credential);
+          await reauthenticateWithCredential(currentUser, cred);
         }
 
         await deleteUser(currentUser);
@@ -228,8 +219,7 @@ export default function Settings() {
       await deleteObject(ref(storage, `logos/${uid}`)).catch(() => {});
       localStorage.clear();
       navigate("/login", { replace: true });
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("account deletion failed");
     } finally {
       setDeleting(false);
@@ -243,17 +233,7 @@ export default function Settings() {
       <div className="max-w-md mx-auto space-y-6">
         <Header />
 
-        {/* mobile-safe glass card */}
-        <div
-          className={`p-6 rounded-3xl border shadow-lg space-y-6
-            text-neutral-900 dark:text-neutral-100
-            ${
-              isMobile()
-                ? "bg-white dark:bg-neutral-900"
-                : "backdrop-blur-xl bg-white/85 dark:bg-white/5"
-            }
-          `}
-        >
+        <div className="p-6 rounded-3xl border shadow-lg space-y-6 backdrop-blur-xl bg-white dark:bg-white/5">
           <h1 className="text-xl font-semibold">Settings</h1>
 
           {/* theme */}
@@ -261,7 +241,7 @@ export default function Settings() {
             <div>
               <p className="text-sm font-medium">Theme</p>
               <p className="text-xs opacity-70">
-                currently using {theme} mode
+                Currently using {theme} mode
               </p>
             </div>
             <button
@@ -296,7 +276,6 @@ export default function Settings() {
             <div className="flex items-center gap-4">
               <img
                 src={displayLogo}
-                alt="logo"
                 className="w-14 h-14 rounded-xl object-cover"
               />
 
@@ -324,18 +303,17 @@ export default function Settings() {
 
             {uploading && (
               <div className="space-y-2">
-                <div className="w-full h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
                   <div
                     className="h-full bg-[var(--accent)] transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-
                 <div className="flex justify-between text-xs opacity-70">
                   <span>Uploading… {uploadProgress}%</span>
                   <button
                     onClick={cancelUpload}
-                    className="text-red-500 hover:underline"
+                    className="text-red-500"
                   >
                     Cancel
                   </button>
@@ -352,7 +330,7 @@ export default function Settings() {
                 <button
                   key={c}
                   onClick={() => setAccent(c)}
-                  className={`w-8 h-8 rounded-full border-2 ${
+                  className={`w-8 h-8 rounded-full ${
                     accent === c ? "scale-110" : "opacity-70"
                   }`}
                   style={{ background: c }}
@@ -369,7 +347,6 @@ export default function Settings() {
 
           <button
             onClick={logout}
-            disabled={deleting}
             className="w-full py-3 rounded-xl bg-red-500 text-white"
           >
             Logout
