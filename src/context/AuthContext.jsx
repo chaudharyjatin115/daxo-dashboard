@@ -14,64 +14,60 @@ import {
 
 const AuthContext = createContext(null);
 
-/* simple mobile check */
 function isMobile() {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* handle google redirect result (critical for mobile) */
+  // 🔑 this runs FIRST on app load
   useEffect(() => {
     let active = true;
 
-    async function handleRedirect() {
+    async function initAuth() {
       try {
         const result = await getRedirectResult(auth);
         if (result?.user && active) {
           setUser(result.user);
         }
       } catch {
-        // no redirect happened, ignore
+        // no redirect, safe to ignore
       }
+
+      // now listen for auth state
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (!active) return;
+        setUser(firebaseUser);
+        setLoading(false);
+      });
+
+      return unsubscribe;
     }
 
-    handleRedirect();
+    const cleanup = initAuth();
+
     return () => {
       active = false;
+      if (typeof cleanup === "function") cleanup();
     };
   }, []);
 
-  /* firebase auth state listener */
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-    });
-
-    return unsub;
-  }, []);
-
-  /* email login */
   function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
-  /* email signup */
   async function signup(email, password) {
     const cred = await createUserWithEmailAndPassword(
       auth,
       email,
       password
     );
-
     await sendEmailVerification(cred.user);
     return cred;
   }
 
-  /* google login */
   async function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
@@ -84,7 +80,6 @@ export function AuthProvider({ children }) {
     return signInWithPopup(auth, provider);
   }
 
-  /* logout */
   function logout() {
     return signOut(auth);
   }
@@ -105,7 +100,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-/* hook */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
