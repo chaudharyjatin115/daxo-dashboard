@@ -11,7 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  /* 🔐 critical: leave login page once auth resolves */
+  // 🔐 this is the missing piece (mobile fix)
   useEffect(() => {
     if (!loading && user) {
       navigate("/", { replace: true });
@@ -25,51 +25,29 @@ export default function Login() {
       await login(email, password);
     } catch (e) {
       alert(e.message);
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   async function handleGoogle() {
     try {
       await loginWithGoogle();
+      // do NOT navigate here
+      // redirect flow handles it
     } catch (e) {
       alert(e.message);
     }
   }
 
-  /* optional skeleton while auth restores */
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center opacity-60">
-        Checking session…
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div
-        className="
-          w-full max-w-md p-8 rounded-3xl
-          border shadow-xl space-y-6
-          animate-scale-in
-        "
+        className="w-full max-w-md p-8 rounded-3xl border shadow-xl space-y-6"
         style={{
           background: "var(--card-bg)",
           borderColor: "var(--card-border)",
         }}
       >
-        {/* logo */}
-        <div className="flex justify-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
-            <div className="absolute inset-[3px] rounded-2xl bg-black flex items-center justify-center text-white font-bold">
-              D
-            </div>
-          </div>
-        </div>
-
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Welcome back</h1>
           <p className="text-sm opacity-70">
@@ -79,43 +57,34 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
-            <Mail className="text-purple-500" size={18} />
+            <Mail size={18} />
             <input
               type="email"
               placeholder="Email address"
               className="w-full outline-none bg-transparent"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
 
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
-            <Lock className="text-indigo-500" size={18} />
+            <Lock size={18} />
             <input
               type="password"
               placeholder="Password"
               className="w-full outline-none bg-transparent"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
             />
           </div>
 
           <button
             disabled={submitting}
-            className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
+            className="w-full py-3 rounded-xl accent-bg"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <button
-          onClick={() => navigate("/forgot-password")}
-          className="w-full text-sm text-center accent-text"
-        >
-          Forgot password?
-        </button>
 
         <div className="flex items-center gap-3 text-xs opacity-60">
           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
@@ -123,14 +92,9 @@ export default function Login() {
           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
         </div>
 
-        {/* google */}
         <button
           onClick={handleGoogle}
-          className="
-            w-full flex items-center justify-center gap-3
-            py-3 rounded-xl border shadow-sm
-            hover:shadow-md transition
-          "
+          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border"
           style={{
             background: "var(--card-bg)",
             borderColor: "var(--card-border)",
@@ -143,16 +107,6 @@ export default function Login() {
           />
           Continue with Google
         </button>
-
-        <p className="text-sm text-center">
-          Don’t have an account?{" "}
-          <span
-            className="accent-text cursor-pointer"
-            onClick={() => navigate("/signup")}
-          >
-            Create one
-          </span>
-        </p>
       </div>
     </div>
   );
