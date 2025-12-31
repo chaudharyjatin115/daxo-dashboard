@@ -33,11 +33,12 @@ const COLORS = [
   "#0f766e",
 ];
 
+/* simple mobile check */
 function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-/* ---------- SAFE LOGO RESOLVER ---------- */
+/* safe logo resolver */
 function resolveLogo({ logo, user, businessName }) {
   if (typeof logo === "string" && logo.trim()) return logo;
   if (user?.photoURL) return user.photoURL;
@@ -64,20 +65,18 @@ export default function Settings() {
     localStorage.getItem("accent") || COLORS[0]
   );
   const [saving, setSaving] = useState(false);
-
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadTask, setUploadTask] = useState(null);
-
   const [deleting, setDeleting] = useState(false);
 
-  
+  /* accent sync */
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", accent);
     localStorage.setItem("accent", accent);
   }, [accent]);
 
-  
+  /* resume delete after redirect (google on mobile) */
   useEffect(() => {
     const resumeDelete = async () => {
       if (sessionStorage.getItem("PENDING_DELETE") !== "1") return;
@@ -89,19 +88,18 @@ export default function Settings() {
 
         await deleteDoc(doc(db, "users", uid));
         await deleteObject(ref(storage, `logos/${uid}`)).catch(() => {});
-
         localStorage.clear();
         navigate("/login", { replace: true });
       } catch (err) {
         console.error(err);
-        alert("Please try deleting your account again.");
+        alert("please try deleting your account again");
       }
     };
 
     resumeDelete();
   }, [navigate]);
 
-
+  /* save business name */
   async function handleSaveBusinessName() {
     if (!user) return;
     setSaving(true);
@@ -109,97 +107,64 @@ export default function Settings() {
     setSaving(false);
   }
 
-  /* ------------------ LOGO UPLOAD (PRODUCTION SAFE) ------------------ */
+  /* logo upload with real progress */
+  function uploadLogo(file) {
+    if (!file || !user || deleting) return;
 
-/* ------------------ LOGO UPLOAD (FINAL, NEVER STUCK) ------------------ */
-function uploadLogo(file) {
-  if (!file || !user || deleting) return;
+    if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
+      alert("logo must be under 2mb");
+      return;
+    }
 
-  if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
-    alert("Logo must be under 2MB");
-    return;
+    const logoRef = ref(storage, `logos/${user.uid}`);
+    const task = uploadBytesResumable(logoRef, file);
+
+    setUploadTask(task);
+    setUploading(true);
+    setUploadProgress(0);
+
+    task.on(
+      "state_changed",
+      (snap) => {
+        const percent = Math.round(
+          (snap.bytesTransferred / snap.totalBytes) * 100
+        );
+        setUploadProgress(percent >= 95 ? 95 : percent);
+      },
+      (err) => {
+        console.error(err);
+        setUploading(false);
+        setUploadTask(null);
+        alert("logo upload failed");
+      },
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref);
+
+        await updateDoc(doc(db, "users", user.uid), {
+          "profile.logo": url,
+        });
+
+        setLogo(url);
+        setUploadProgress(100);
+
+        setTimeout(() => {
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadTask(null);
+        }, 400);
+      }
+    );
   }
 
-  const logoRef = ref(storage, `logos/${user.uid}`);
-  const task = uploadBytesResumable(logoRef, file);
+  function cancelUpload() {
+    if (!uploadTask) return;
+    uploadTask.cancel();
+    setUploading(false);
+    setUploadProgress(0);
+    setUploadTask(null);
+  }
 
-  setUploadTask(task);
-  setUploading(true);
-
-  // 🔹 Start visibly
-  setUploadProgress(12);
-
-  // 🔹 Smooth fallback progress (never freezes)
-  let fake = 12;
-  const ticker = setInterval(() => {
-    fake += Math.random() * 6;
-    setUploadProgress((p) =>
-      p < 95 ? Math.min(Math.max(p, fake), 95) : p
-    );
-  }, 300);
-
-  // 🔹 Real Firebase progress
-  task.on(
-    "state_changed",
-    (snap) => {
-      if (!snap.totalBytes) return;
-
-      const real = Math.round(
-        (snap.bytesTransferred / snap.totalBytes) * 100
-      );
-
-      setUploadProgress((p) => Math.max(p, real));
-    },
-    (err) => {
-      clearInterval(ticker);
-
-      if (err.code === "storage/canceled") {
-        resetUploadUI();
-        return;
-      }
-
-      console.error(err);
-      alert("Logo upload failed");
-      resetUploadUI();
-    }
-  );
-
-  // ✅ 🔥 GUARANTEED COMPLETION (THIS FIXES 90%)
-  task
-    .then(async () => {
-      clearInterval(ticker);
-
-      const url = await getDownloadURL(task.snapshot.ref);
-
-      await updateDoc(doc(db, "users", user.uid), {
-        "profile.logo": url,
-      });
-
-      setLogo(url);
-
-      // Hard snap to 100
-      setUploadProgress(100);
-
-      setTimeout(resetUploadUI, 500);
-    })
-    .catch(() => {
-      clearInterval(ticker);
-      resetUploadUI();
-    });
-}
-
-function cancelUpload() {
-  if (uploadTask) uploadTask.cancel();
-  resetUploadUI();
-}
-
-function resetUploadUI() {
-  setUploading(false);
-  setUploadProgress(0);
-  setUploadTask(null);
-}
-
-  
+  /* delete logo */
   async function deleteLogo() {
     if (!user || uploading) return;
 
@@ -210,12 +175,12 @@ function resetUploadUI() {
     setUploading(false);
   }
 
- 
+  /* delete account */
   async function handleDeleteAccount() {
     if (!user || deleting) return;
 
     const ok = window.confirm(
-      "This will permanently delete your account and all data.\n\nThis cannot be undone.\n\nContinue?"
+      "this will permanently delete your account and all data.\n\ncontinue?"
     );
     if (!ok) return;
 
@@ -245,10 +210,8 @@ function resetUploadUI() {
             await reauthenticateWithPopup(currentUser, provider);
           }
         } else {
-          const password = window.prompt(
-            "Enter your password to confirm account deletion:"
-          );
-          if (!password) throw new Error("Password required");
+          const password = window.prompt("enter password to confirm:");
+          if (!password) throw new Error("password required");
 
           const credential = EmailAuthProvider.credential(
             currentUser.email,
@@ -267,7 +230,7 @@ function resetUploadUI() {
       navigate("/login", { replace: true });
     } catch (err) {
       console.error(err);
-      alert("Account deletion failed. Please try again.");
+      alert("account deletion failed");
     } finally {
       setDeleting(false);
     }
@@ -280,15 +243,25 @@ function resetUploadUI() {
       <div className="max-w-md mx-auto space-y-6">
         <Header />
 
-        <div className="p-6 rounded-3xl backdrop-blur-xl border shadow-lg space-y-6 bg-white/85 dark:bg-white/5">
+        {/* mobile-safe glass card */}
+        <div
+          className={`p-6 rounded-3xl border shadow-lg space-y-6
+            text-neutral-900 dark:text-neutral-100
+            ${
+              isMobile()
+                ? "bg-white dark:bg-neutral-900"
+                : "backdrop-blur-xl bg-white/85 dark:bg-white/5"
+            }
+          `}
+        >
           <h1 className="text-xl font-semibold">Settings</h1>
 
-          {/* THEME */}
+          {/* theme */}
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm font-medium">Theme</p>
               <p className="text-xs opacity-70">
-                Currently using {theme} mode
+                currently using {theme} mode
               </p>
             </div>
             <button
@@ -299,7 +272,7 @@ function resetUploadUI() {
             </button>
           </div>
 
-          {/* BUSINESS NAME */}
+          {/* business name */}
           <div className="space-y-2">
             <label className="text-sm opacity-70">Business name</label>
             <input
@@ -316,7 +289,7 @@ function resetUploadUI() {
             </button>
           </div>
 
-          {/* LOGO */}
+          {/* logo */}
           <div className="space-y-3">
             <label className="text-sm opacity-70">Business logo</label>
 
@@ -353,7 +326,7 @@ function resetUploadUI() {
               <div className="space-y-2">
                 <div className="w-full h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[var(--accent)] transition-all duration-200"
+                    className="h-full bg-[var(--accent)] transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -371,7 +344,7 @@ function resetUploadUI() {
             )}
           </div>
 
-          {/* ACCENT */}
+          {/* accent */}
           <div>
             <p className="text-sm mb-2">Brand accent color</p>
             <div className="flex gap-3">
@@ -388,7 +361,7 @@ function resetUploadUI() {
             </div>
           </div>
 
-          {/* USER */}
+          {/* user */}
           <div className="text-sm opacity-80">
             <p>👤 {user?.displayName || "Email user"}</p>
             <p>📧 {user?.email}</p>
