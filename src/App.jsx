@@ -1,65 +1,54 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./context/AuthContext";
-import { useBusiness } from "./context/BusinessContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyEmail from "./pages/VerifyEmail";
-import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
-import Settings from "./pages/Settings";
+import Onboarding from "./pages/Onboarding";
+
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
-  const { businessName, loading: businessLoading } = useBusiness();
-
-  // ⛔ block routing until auth + business are resolved
-  if (authLoading || businessLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center opacity-60">
-        Loading…
-      </div>
-    );
-  }
-
   return (
     <BrowserRouter>
       <Routes>
         {/* public */}
-        {!user && (
-          <>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </>
-        )}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
 
-        {/* email verification */}
-        {user && !user.emailVerified && (
-          <>
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="*" element={<Navigate to="/verify-email" replace />} />
-          </>
-        )}
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          }
+        />
 
-        {/* onboarding */}
-        {user && user.emailVerified && !businessName && (
-          <>
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="*" element={<Navigate to="/onboarding" replace />} />
-          </>
-        )}
+        {/* protected */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* app */}
-        {user && user.emailVerified && businessName && (
-          <>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
