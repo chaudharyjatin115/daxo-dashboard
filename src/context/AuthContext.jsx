@@ -1,110 +1,3 @@
-
-// import { createContext, useContext, useEffect, useState } from "react";
-// import { auth } from "../firebase";
-// import {
-//   GoogleAuthProvider,
-//   signInWithPopup,
-//   signInWithRedirect,
-//   getRedirectResult,
-//   signInWithEmailAndPassword,
-//   createUserWithEmailAndPassword,
-//   sendEmailVerification,
-//   signOut,
-//   onAuthStateChanged,
-// } from "firebase/auth";
-
-// const AuthContext = createContext(null);
-
-// /* ------------------ HELPERS ------------------ */
-// function isMobile() {
-//   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-// }
-
-// export function AuthProvider({ children }) {
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-
-//   /* ------------------ AUTH STATE LISTENER ------------------ */
-//   useEffect(() => {
-//     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-//       setUser(firebaseUser);
-//       setLoading(false);
-//     });
-
-//     return unsubscribe;
-//   }, []);
-
-//   /* ------------------ HANDLE REDIRECT LOGIN ------------------ */
-//   useEffect(() => {
-//     getRedirectResult(auth).catch(() => {
-//       // No redirect happened – ignore safely
-//     });
-//   }, []);
-
-//   /* ------------------ EMAIL LOGIN ------------------ */
-//   async function login(email, password) {
-//     return signInWithEmailAndPassword(auth, email, password);
-//   }
-
-//   /* ------------------ EMAIL SIGNUP ------------------ */
-//   async function signup(email, password) {
-//     const cred = await createUserWithEmailAndPassword(
-//       auth,
-//       email,
-//       password
-//     );
-
-//     // 🔐 Always send verification for email signup
-//     await sendEmailVerification(cred.user);
-
-//     return cred;
-//   }
-
-//   /* ------------------ GOOGLE LOGIN ------------------ */
-//   async function loginWithGoogle() {
-//     const provider = new GoogleAuthProvider();
-//     provider.setCustomParameters({
-//       prompt: "select_account",
-//     });
-
-//     if (isMobile()) {
-//       // ✅ REQUIRED for mobile browsers
-//       await signInWithRedirect(auth, provider);
-//       return;
-//     }
-
-//     return signInWithPopup(auth, provider);
-//   }
-
-//   /* ------------------ LOGOUT ------------------ */
-//   async function logout() {
-//     await signOut(auth);
-//   }
-
-//   return (
-//     <AuthContext.Provider
-//       value={{
-//         user,
-//         loading,
-//         login,
-//         signup,
-//         loginWithGoogle,
-//         logout,
-//       }}
-//     >
-//       {children}
-//     </AuthContext.Provider>
-//   );
-// }
-
-// /* ------------------ HOOK ------------------ */
-// export function useAuth() {
-//   const ctx = useContext(AuthContext);
-//   if (!ctx) {
-//     throw new Error("useAuth must be used inside AuthProvider");
-//   }
-//   return ctx;
-// }
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../firebase";
 import {
@@ -130,29 +23,35 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* handle redirect result first (important for mobile) */
+  /*
+    handle redirect result FIRST
+    this is critical for mobile google login
+  */
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     async function handleRedirect() {
       try {
         const result = await getRedirectResult(auth);
-        if (result?.user && mounted) {
+        if (result?.user && active) {
           setUser(result.user);
         }
       } catch {
-        // no redirect, safe to ignore
+        // no redirect happened, ignore
       }
     }
 
     handleRedirect();
 
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
-  /* auth state listener */
+  /*
+    main auth state listener
+    single source of truth
+  */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
@@ -175,6 +74,7 @@ export function AuthProvider({ children }) {
       password
     );
 
+    // always verify email
     await sendEmailVerification(cred.user);
     return cred;
   }
@@ -185,6 +85,7 @@ export function AuthProvider({ children }) {
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (isMobile()) {
+      // mobile browsers REQUIRE redirect
       await signInWithRedirect(auth, provider);
       return;
     }
