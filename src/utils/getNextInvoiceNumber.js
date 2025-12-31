@@ -1,30 +1,26 @@
-import { doc, runTransaction } from "firebase/firestore";
+import { doc, getDoc, setDoc, increment } from "firebase/firestore";
 import { db } from "../firebase";
 
 /*
-  generates next invoice number safely
-  format: INV-000001, INV-000002 ...
+  keeps invoice numbers sequential per user
+  INV-0001, INV-0002 ...
 */
-export async function getNextInvoiceNumber(userId) {
-  if (!userId) throw new Error("user id missing");
 
-  const counterRef = doc(db, "users", userId, "meta", "invoiceCounter");
+export async function getNextInvoiceNumber(uid) {
+  const ref = doc(db, "users", uid, "meta", "invoiceCounter");
+  const snap = await getDoc(ref);
 
-  const nextNumber = await runTransaction(db, async (tx) => {
-    const snap = await tx.get(counterRef);
+  let next = 1;
 
-    let current = 0;
+  if (snap.exists()) {
+    next = (snap.data().current || 0) + 1;
+  }
 
-    if (snap.exists()) {
-      current = snap.data().current || 0;
-    }
+  await setDoc(
+    ref,
+    { current: next },
+    { merge: true }
+  );
 
-    const updated = current + 1;
-
-    tx.set(counterRef, { current: updated }, { merge: true });
-
-    return updated;
-  });
-
-  return `INV-${String(nextNumber).padStart(6, "0")}`;
+  return `INV-${String(next).padStart(4, "0")}`;
 }
