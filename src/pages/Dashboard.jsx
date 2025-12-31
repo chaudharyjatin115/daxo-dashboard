@@ -9,11 +9,7 @@ import { useOrders } from "../hooks/useOrders";
 import { useAuth } from "../context/AuthContext";
 import { useBusiness } from "../context/BusinessContext";
 
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 
 import { generateInvoicePDF } from "../utils/generateInvoice";
@@ -27,128 +23,99 @@ export default function Dashboard() {
   const [tab, setTab] = useState("pending");
   const [editingOrder, setEditingOrder] = useState(null);
 
-  const filteredOrders = orders.filter(
-    (o) => o.status === tab
-  );
+  const filteredOrders = orders.filter(o => o.status === tab);
 
-  /* create + download invoice */
   async function handleInvoice(order) {
-    if (!user) return;
+    if (order.invoiceLocked) return;
 
-    try {
-      const invoiceNumber = await getNextInvoiceNumber(user.uid);
+    const invoiceNumber =
+      order.invoiceNumber ||
+      (await getNextInvoiceNumber(user.uid));
 
-      const invoice = {
+    const invoice = {
+      invoiceNumber,
+      status: order.paid >= order.total ? "paid" : "pending",
+      createdAt: serverTimestamp(),
+    };
+
+    await addDoc(
+      collection(db, "users", user.uid, "invoices"),
+      { ...invoice, orderId: order.id }
+    );
+
+    await updateDoc(
+      doc(db, "users", user.uid, "orders", order.id),
+      {
         invoiceNumber,
-        orderId: order.id,
-        customer: order.customer,
-        subtotal: order.total,
-        paid: order.paid,
-        due: order.total - order.paid,
-        status: order.paid >= order.total ? "paid" : "pending",
-        createdAt: serverTimestamp(),
-      };
+        invoiceLocked: invoice.status === "paid",
+      }
+    );
 
-      await addDoc(
-        collection(db, "users", user.uid, "invoices"),
-        invoice
-      );
+    const pdf = generateInvoicePDF({
+      business: { name: businessName || "Business" },
+      order,
+      invoice,
+    });
 
-      const pdf = generateInvoicePDF({
-        business: {
-          name: businessName || "My Business",
-        },
-        order,
-        invoice,
+    pdf.save(`${invoiceNumber}.pdf`);
+  }
+
+  async function handleWhatsApp(order) {
+    const pdf = generateInvoicePDF({
+      business: { name: businessName || "Business" },
+      order,
+      invoice: {
+        invoiceNumber: order.invoiceNumber,
+        status: order.status,
+      },
+    });
+
+    const blob = pdf.output("blob");
+    const file = new File([blob], `${order.invoiceNumber}.pdf`, {
+      type: "application/pdf",
+    });
+
+    if (navigator.share) {
+      await navigator.share({
+        files: [file],
+        title: "Invoice",
       });
-
-      pdf.save(`${invoiceNumber}.pdf`);
-    } catch (err) {
-      console.error(err);
-      alert("failed to generate invoice");
     }
-  }
-
-  /* whatsapp share */
-  function handleWhatsApp(order) {
-    const message = `
-Invoice for ${order.customer}
-
-Total: ₹${order.total}
-Paid: ₹${order.paid}
-Due: ₹${order.total - order.paid}
-
-Thanks,
-${businessName || "My Business"}
-`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(
-      message.trim()
-    )}`;
-
-    window.open(url, "_blank");
-  }
-
-  /* instagram share (story intent) */
-  function handleInstagram(order) {
-    const text = `
-Invoice for ${order.customer}
-₹${order.total} | Paid ₹${order.paid}
-${businessName || ""}
-`;
-
-    const url = `https://www.instagram.com/create/story/?text=${encodeURIComponent(
-      text.trim()
-    )}`;
-
-    window.open(url, "_blank");
   }
 
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <Header />
-
         <SummaryCards orders={orders} />
-
         <OrderTabs value={tab} onChange={setTab} />
 
-        <div className="space-y-4 min-h-[240px]">
+        <div className="space-y-4">
           {loading ? (
-            <div className="text-center opacity-60 py-20">
+            <div className="text-center py-20 opacity-60">
               loading orders…
             </div>
           ) : filteredOrders.length ? (
-            filteredOrders.map((o) => (
+            filteredOrders.map(o => (
               <OrderCard
                 key={o.id}
                 order={o}
                 onEdit={() => setEditingOrder(o)}
                 onInvoice={() => handleInvoice(o)}
                 onWhatsApp={() => handleWhatsApp(o)}
-                onInstagram={() => handleInstagram(o)}
               />
             ))
           ) : (
-            <div className="text-center opacity-60 py-20">
-              📦 no {tab} orders
-              <div className="text-sm mt-1">
-                tap + to add your first order
-              </div>
+            <div className="text-center py-20 opacity-60">
+              no {tab} orders
             </div>
           )}
         </div>
       </div>
 
-      {/* add order */}
       <button
         onClick={() => setEditingOrder({})}
-        className="
-          fixed bottom-6 right-6
-          w-14 h-14 rounded-full
-          accent-bg text-white text-3xl
-          shadow-lg
-        "
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-indigo-500 text-white text-3xl"
       >
         +
       </button>
