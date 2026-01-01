@@ -27,9 +27,7 @@ export default function OrderCard({
 
   async function remove() {
     try {
-      await deleteDoc(
-        doc(db, "users", user.uid, "orders", order.id)
-      );
+      await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
       setConfirming(false);
     } catch (e) {
       alert(e.message);
@@ -66,27 +64,21 @@ export default function OrderCard({
 
         {/* actions */}
         <div className="flex flex-wrap gap-3 pt-2">
-          <Action
-            icon={Pencil}
-            label="Edit"
-            onClick={onEdit}
-            color="bg-indigo-500"
-          />
+          <Action icon={Pencil} label="Edit" onClick={onEdit} color="bg-indigo-500" />
 
           <Action
             icon={FileText}
-            label="Invoice"
-            onClick={() => onInvoice?.(order)}
+            label={order.invoiceNumber ? "Invoice" : "Generate"}
+            onClick={() => onInvoice(order)}
             color="bg-blue-500"
           />
 
-          {/* whatsapp share */}
-          {onWhatsApp && (
+          {order.invoiceNumber && (
             <Action
               icon={MessageCircle}
               label="WhatsApp"
               onClick={() => onWhatsApp(order)}
-              color="bg-emerald-600"
+              color="bg-green-500"
             />
           )}
 
@@ -122,9 +114,7 @@ export default function OrderCard({
               borderColor: "var(--card-border)",
             }}
           >
-            <h3 className="font-semibold text-lg">
-              Delete order?
-            </h3>
+            <h3 className="font-semibold text-lg">Delete order?</h3>
             <p className="text-sm opacity-70">
               This action cannot be undone.
             </p>
@@ -150,7 +140,7 @@ export default function OrderCard({
   );
 }
 
-/* sub components */
+/* helpers */
 
 function Row({ icon, text, danger }) {
   const Icon = icon;
