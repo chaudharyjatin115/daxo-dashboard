@@ -14,7 +14,12 @@ import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 
-export default function OrderCard({ order, onEdit, onInvoice }) {
+export default function OrderCard({
+  order,
+  onEdit,
+  onInvoice,
+  onWhatsApp,
+}) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
 
@@ -27,17 +32,6 @@ export default function OrderCard({ order, onEdit, onInvoice }) {
     } catch (e) {
       alert(e.message);
     }
-  }
-
-  function shareWhatsApp() {
-    if (!order.invoicePdfUrl) {
-      alert("Generate invoice first");
-      return;
-    }
-
-    const text = `Invoice for ${order.customer}\n${order.invoicePdfUrl}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
   }
 
   return (
@@ -80,18 +74,17 @@ export default function OrderCard({ order, onEdit, onInvoice }) {
           <Action
             icon={FileText}
             label="Invoice"
-            onClick={() => onInvoice(order)}
+            onClick={() => onInvoice?.(order)}
             color="bg-blue-500"
           />
 
-          {order.invoicePdfUrl && (
-            <Action
-              icon={MessageCircle}
-              label="WhatsApp"
-              onClick={shareWhatsApp}
-              color="bg-green-500"
-            />
-          )}
+          {/* whatsapp */}
+          <Action
+            icon={MessageCircle}
+            label="WhatsApp"
+            onClick={() => onWhatsApp?.(order)}
+            color="bg-green-500"
+          />
 
           <Action
             icon={Trash2}
