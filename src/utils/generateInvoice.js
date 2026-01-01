@@ -1,33 +1,27 @@
 import jsPDF from "jspdf";
 
 export function generateInvoicePDF({ business, order, invoice }) {
-  const doc = new jsPDF();
+  const pdf = new jsPDF();
 
-  // header
-  doc.setFontSize(18);
-  doc.text(business.name, 14, 20);
+  pdf.setFontSize(18);
+  pdf.text(business.name, 20, 20);
 
-  doc.setFontSize(12);
-  doc.text(`Invoice: ${invoice.invoiceNumber}`, 14, 30);
-  doc.text(`Customer: ${order.customer}`, 14, 38);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 46);
+  pdf.setFontSize(12);
+  pdf.text(`Invoice: ${invoice.invoiceNumber}`, 20, 35);
+  pdf.text(`Customer: ${order.customer}`, 20, 45);
+  pdf.text(`Product: ${order.product}`, 20, 55);
 
-  // body
-  doc.text(`Product: ${order.product}`, 14, 60);
-  doc.text(`Total: ₹${order.total}`, 14, 70);
-  doc.text(`Paid: ₹${order.paid}`, 14, 80);
-  doc.text(`Due: ₹${order.total - order.paid}`, 14, 90);
+  pdf.text(`Total: ₹${order.total}`, 20, 75);
+  pdf.text(`Paid: ₹${order.paid}`, 20, 85);
+  pdf.text(`Due: ₹${order.total - order.paid}`, 20, 95);
 
   // paid watermark
   if (invoice.status === "paid") {
-    doc.setTextColor(220, 220, 220);
-    doc.setFontSize(60);
-    doc.text("PAID", 105, 150, {
-      align: "center",
-      angle: 45,
-    });
-    doc.setTextColor(0, 0, 0);
+    pdf.setTextColor(200, 200, 200);
+    pdf.setFontSize(50);
+    pdf.text("PAID", 40, 160, { angle: 45 });
+    pdf.setTextColor(0, 0, 0);
   }
 
-  return doc;
+  return pdf;
 }
