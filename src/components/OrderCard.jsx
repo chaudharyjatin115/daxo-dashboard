@@ -24,10 +24,13 @@ export default function OrderCard({
   const [confirming, setConfirming] = useState(false);
 
   const due = order.total - order.paid;
+  const hasInvoice = Boolean(order.invoiceNumber);
 
   async function remove() {
     try {
-      await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
+      await deleteDoc(
+        doc(db, "users", user.uid, "orders", order.id)
+      );
       setConfirming(false);
     } catch (e) {
       alert(e.message);
@@ -78,12 +81,19 @@ export default function OrderCard({
             color="bg-blue-500"
           />
 
-          {/* whatsapp */}
+          {/* whatsapp share */}
           <Action
             icon={MessageCircle}
             label="WhatsApp"
-            onClick={() => onWhatsApp?.(order)}
-            color="bg-green-500"
+            onClick={() => {
+              if (!hasInvoice) return;
+              onWhatsApp?.(order);
+            }}
+            color={
+              hasInvoice
+                ? "bg-green-500"
+                : "bg-green-500/40 cursor-not-allowed"
+            }
           />
 
           <Action
@@ -101,9 +111,16 @@ export default function OrderCard({
             />
           )}
         </div>
+
+        {/* helper hint */}
+        {!hasInvoice && (
+          <p className="text-xs opacity-50 pt-1">
+            generate invoice to share on whatsapp
+          </p>
+        )}
       </div>
 
-      {/* delete confirm */}
+      {/* delete confirmation */}
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
@@ -118,7 +135,9 @@ export default function OrderCard({
               borderColor: "var(--card-border)",
             }}
           >
-            <h3 className="font-semibold text-lg">Delete order?</h3>
+            <h3 className="font-semibold text-lg">
+              Delete order?
+            </h3>
             <p className="text-sm opacity-70">
               This action cannot be undone.
             </p>
@@ -144,12 +163,16 @@ export default function OrderCard({
   );
 }
 
-/* sub components */
+/* small sub components */
 
 function Row({ icon, text, danger }) {
   const Icon = icon;
   return (
-    <div className={`flex items-center gap-2 ${danger ? "text-red-500" : ""}`}>
+    <div
+      className={`flex items-center gap-2 ${
+        danger ? "text-red-500" : ""
+      }`}
+    >
       <Icon size={16} className="icon-muted" />
       {text}
     </div>
