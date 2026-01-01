@@ -32,7 +32,7 @@ export default function Dashboard() {
 
   const filteredOrders = orders.filter((o) => o.status === tab);
 
-  /* invoice generate / download */
+  // invoice generate / download (free plan safe)
   async function handleInvoice(order) {
     if (!user || generating) return;
 
@@ -40,9 +40,10 @@ export default function Dashboard() {
 
     try {
       let invoiceNumber = order.invoiceNumber;
-      const status = order.paid >= order.total ? "paid" : "unpaid";
+      const invoiceStatus =
+        order.paid >= order.total ? "paid" : "unpaid";
 
-      // first time invoice
+      // generate only once
       if (!invoiceNumber) {
         invoiceNumber = await getNextInvoiceNumber(user.uid);
 
@@ -51,22 +52,23 @@ export default function Dashboard() {
           {
             invoiceNumber,
             orderId: order.id,
-            status,
+            status: invoiceStatus,
             createdAt: serverTimestamp(),
           }
         );
 
-        // lock invoice on order
+        // lock invoice to order
         await updateDoc(
           doc(db, "users", user.uid, "orders", order.id),
           {
             invoiceNumber,
-            invoiceStatus: status,
+            invoiceStatus,
             locked: true,
           }
         );
       }
 
+      // generate pdf locally every time (same invoice)
       const pdf = generateInvoicePDF({
         business: { name: businessName || "Business" },
         order: {
@@ -75,35 +77,33 @@ export default function Dashboard() {
         },
         invoice: {
           invoiceNumber,
-          status,
+          status: invoiceStatus,
         },
       });
 
       pdf.save(`${invoiceNumber}.pdf`);
     } catch (err) {
-      console.error(err);
+      console.error("invoice error:", err);
       alert("Failed to generate invoice");
     } finally {
       setGenerating(false);
     }
   }
 
-  /* whatsapp share (free plan safe) */
+  // whatsapp share (no file upload, free plan friendly)
   function handleWhatsApp(order) {
     if (!order.invoiceNumber) {
       alert("Generate invoice first");
       return;
     }
 
-    const message = `
-Invoice ${order.invoiceNumber}
+    const message = `Invoice ${order.invoiceNumber}
 Customer: ${order.customer}
 Total: ₹${order.total}
 Paid: ₹${order.paid}
 Due: ₹${order.total - order.paid}
 
-Please find the invoice attached.
-`;
+Invoice generated from ${businessName || "Business"}`;
 
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
