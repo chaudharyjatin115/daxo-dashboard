@@ -13,9 +13,8 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useBusiness } from "../context/BusinessContext";
 
@@ -33,86 +32,80 @@ export default function Dashboard() {
 
   const filteredOrders = orders.filter((o) => o.status === tab);
 
-  /* generate invoice once and lock it */
+  /* invoice generate / download */
   async function handleInvoice(order) {
     if (!user || generating) return;
-
-    // already generated → reuse
-    if (order.invoicePdfUrl) {
-      window.open(order.invoicePdfUrl, "_blank");
-      return;
-    }
 
     setGenerating(true);
 
     try {
-      const invoiceNumber = await getNextInvoiceNumber(user.uid);
+      let invoiceNumber = order.invoiceNumber;
+      const status = order.paid >= order.total ? "paid" : "unpaid";
 
-      const invoiceData = {
-        invoiceNumber,
-        orderId: order.id,
-        total: order.total,
-        paid: order.paid,
-        due: order.total - order.paid,
-        status: order.paid >= order.total ? "paid" : "unpaid",
-        createdAt: serverTimestamp(),
-      };
+      // first time invoice
+      if (!invoiceNumber) {
+        invoiceNumber = await getNextInvoiceNumber(user.uid);
 
-      // save invoice
-      const invoiceRef = await addDoc(
-        collection(db, "users", user.uid, "invoices"),
-        invoiceData
-      );
+        await addDoc(
+          collection(db, "users", user.uid, "invoices"),
+          {
+            invoiceNumber,
+            orderId: order.id,
+            status,
+            createdAt: serverTimestamp(),
+          }
+        );
 
-      // generate pdf
+        // lock invoice on order
+        await updateDoc(
+          doc(db, "users", user.uid, "orders", order.id),
+          {
+            invoiceNumber,
+            invoiceStatus: status,
+            locked: true,
+          }
+        );
+      }
+
       const pdf = generateInvoicePDF({
         business: { name: businessName || "Business" },
-        order,
-        invoice: invoiceData,
+        order: {
+          ...order,
+          invoiceNumber,
+        },
+        invoice: {
+          invoiceNumber,
+          status,
+        },
       });
 
-      const blob = pdf.output("blob");
-
-      // upload pdf
-      const fileRef = ref(
-        storage,
-        `invoices/${user.uid}/${invoiceNumber}.pdf`
-      );
-
-      await uploadBytes(fileRef, blob);
-      const pdfUrl = await getDownloadURL(fileRef);
-
-      // update invoice
-      await updateDoc(invoiceRef, { pdfUrl });
-
-      // lock order
-      await updateDoc(
-        doc(db, "users", user.uid, "orders", order.id),
-        {
-          invoiceNumber,
-          invoicePdfUrl: pdfUrl,
-          invoiceId: invoiceRef.id,
-        }
-      );
-
-      window.open(pdfUrl, "_blank");
+      pdf.save(`${invoiceNumber}.pdf`);
     } catch (err) {
-      console.error("invoice generation failed:", err);
+      console.error(err);
       alert("Failed to generate invoice");
     } finally {
       setGenerating(false);
     }
   }
 
-  /* whatsapp share actual pdf */
+  /* whatsapp share (free plan safe) */
   function handleWhatsApp(order) {
-    if (!order.invoicePdfUrl) {
+    if (!order.invoiceNumber) {
       alert("Generate invoice first");
       return;
     }
 
-    const text = `Invoice for ${order.customer}\n\n${order.invoicePdfUrl}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const message = `
+Invoice ${order.invoiceNumber}
+Customer: ${order.customer}
+Total: ₹${order.total}
+Paid: ₹${order.paid}
+Due: ₹${order.total - order.paid}
+
+Please find the invoice attached.
+`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
   }
 
