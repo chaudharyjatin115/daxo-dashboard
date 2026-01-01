@@ -14,12 +14,7 @@ import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 
-export default function OrderCard({
-  order,
-  onEdit,
-  onInvoice,
-  onWhatsApp,
-}) {
+export default function OrderCard({ order, onEdit, onInvoice }) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
 
@@ -32,6 +27,17 @@ export default function OrderCard({
     } catch (e) {
       alert(e.message);
     }
+  }
+
+  function shareWhatsApp() {
+    if (!order.invoicePdfUrl) {
+      alert("Generate invoice first");
+      return;
+    }
+
+    const text = `Invoice for ${order.customer}\n${order.invoicePdfUrl}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   }
 
   return (
@@ -64,20 +70,25 @@ export default function OrderCard({
 
         {/* actions */}
         <div className="flex flex-wrap gap-3 pt-2">
-          <Action icon={Pencil} label="Edit" onClick={onEdit} color="bg-indigo-500" />
+          <Action
+            icon={Pencil}
+            label="Edit"
+            onClick={onEdit}
+            color="bg-indigo-500"
+          />
 
           <Action
             icon={FileText}
-            label={order.invoiceNumber ? "Invoice" : "Generate"}
+            label="Invoice"
             onClick={() => onInvoice(order)}
             color="bg-blue-500"
           />
 
-          {order.invoiceNumber && (
+          {order.invoicePdfUrl && (
             <Action
               icon={MessageCircle}
               label="WhatsApp"
-              onClick={() => onWhatsApp(order)}
+              onClick={shareWhatsApp}
               color="bg-green-500"
             />
           )}
@@ -140,7 +151,7 @@ export default function OrderCard({
   );
 }
 
-/* helpers */
+/* sub components */
 
 function Row({ icon, text, danger }) {
   const Icon = icon;
