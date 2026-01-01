@@ -32,7 +32,7 @@ export default function Dashboard() {
 
   const filteredOrders = orders.filter((o) => o.status === tab);
 
-  // invoice generate / download (free plan safe)
+  /* generate + lock invoice */
   async function handleInvoice(order) {
     if (!user || generating) return;
 
@@ -40,10 +40,10 @@ export default function Dashboard() {
 
     try {
       let invoiceNumber = order.invoiceNumber;
-      const invoiceStatus =
+      const status =
         order.paid >= order.total ? "paid" : "unpaid";
 
-      // generate only once
+      // first-time invoice creation
       if (!invoiceNumber) {
         invoiceNumber = await getNextInvoiceNumber(user.uid);
 
@@ -52,7 +52,7 @@ export default function Dashboard() {
           {
             invoiceNumber,
             orderId: order.id,
-            status: invoiceStatus,
+            status,
             createdAt: serverTimestamp(),
           }
         );
@@ -62,13 +62,13 @@ export default function Dashboard() {
           doc(db, "users", user.uid, "orders", order.id),
           {
             invoiceNumber,
-            invoiceStatus,
+            invoiceStatus: status,
             locked: true,
           }
         );
       }
 
-      // generate pdf locally every time (same invoice)
+      // generate pdf locally
       const pdf = generateInvoicePDF({
         business: { name: businessName || "Business" },
         order: {
@@ -77,35 +77,77 @@ export default function Dashboard() {
         },
         invoice: {
           invoiceNumber,
-          status: invoiceStatus,
+          status,
         },
       });
 
       pdf.save(`${invoiceNumber}.pdf`);
     } catch (err) {
-      console.error("invoice error:", err);
+      console.error(err);
       alert("Failed to generate invoice");
     } finally {
       setGenerating(false);
     }
   }
 
-  // whatsapp share (no file upload, free plan friendly)
-  function handleWhatsApp(order) {
+  /* whatsapp share with pdf (android native, desktop fallback) */
+  async function handleWhatsApp(order) {
     if (!order.invoiceNumber) {
       alert("Generate invoice first");
       return;
     }
 
-    const message = `Invoice ${order.invoiceNumber}
+    const status =
+      order.paid >= order.total ? "paid" : "unpaid";
+
+    // generate pdf in memory
+    const pdf = generateInvoicePDF({
+      business: { name: businessName || "Business" },
+      order,
+      invoice: {
+        invoiceNumber: order.invoiceNumber,
+        status,
+      },
+    });
+
+    const blob = pdf.output("blob");
+
+    const file = new File(
+      [blob],
+      `${order.invoiceNumber}.pdf`,
+      { type: "application/pdf" }
+    );
+
+    // android / mobile native share (best ux)
+    if (
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({
+          title: `Invoice ${order.invoiceNumber}`,
+          text: `Invoice for ${order.customer}`,
+          files: [file],
+        });
+        return;
+      } catch (err) {
+        // user cancelled share → silent
+        console.log("share cancelled");
+      }
+    }
+
+    // desktop fallback (text-based whatsapp)
+    const message = `
+Invoice ${order.invoiceNumber}
 Customer: ${order.customer}
 Total: ₹${order.total}
 Paid: ₹${order.paid}
 Due: ₹${order.total - order.paid}
+`;
 
-Invoice generated from ${businessName || "Business"}`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(
+      message
+    )}`;
     window.open(url, "_blank");
   }
 
@@ -144,7 +186,7 @@ Invoice generated from ${businessName || "Business"}`;
         </div>
       </div>
 
-      {/* add order */}
+      {/* floating add button */}
       <button
         onClick={() => setEditingOrder({})}
         className="
