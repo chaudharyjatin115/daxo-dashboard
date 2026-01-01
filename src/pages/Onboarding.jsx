@@ -4,7 +4,7 @@ import { useBusiness } from "../context/BusinessContext";
 import { useNavigate } from "react-router-dom";
 
 import { useState } from "react";
-import { db, storage } from "../firebase";
+// import { db, storage } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
 import {
   ref,

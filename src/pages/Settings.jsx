@@ -4,7 +4,7 @@ import { useBusiness } from "../context/BusinessContext";
 import Header from "../components/Header";
 
 import { useEffect, useState } from "react";
-import { db, storage, auth } from "../firebase";
+// import { db, storage, auth } from "../firebase";
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import {
   ref,
