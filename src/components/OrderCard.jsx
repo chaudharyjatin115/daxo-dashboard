@@ -7,42 +7,41 @@ import {
   FileText,
   Trash2,
   CheckCircle,
-  Send,
 } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 
-export default function OrderCard({
-  order,
-  onEdit,
-  onInvoice,
-  onWhatsApp,
-}) {
+export default function OrderCard({ order, onEdit, onInvoice }) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
 
   const due = order.total - order.paid;
-  const locked = order.invoiceLocked;
 
   async function remove() {
-    await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
-    setConfirming(false);
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
+      setConfirming(false);
+    } catch (e) {
+      alert(e.message);
+    }
   }
 
   return (
     <>
-      <div className="rounded-2xl p-6 space-y-4 border shadow-sm">
+      <div className="rounded-2xl p-6 space-y-4 backdrop-blur-xl border shadow-sm card">
+        {/* header */}
         <div className="flex justify-between">
           <div className="font-semibold">
             📦 Order #{order.id.slice(0, 6)}
           </div>
           <div className="text-sm opacity-60">
-            {order.createdAt?.toDate?.().toLocaleDateString?.()}
+            {order.createdAt?.toDate?.().toLocaleDateString?.() || ""}
           </div>
         </div>
 
+        {/* details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <Row icon={User} text={order.customer} />
           <Row icon={MapPin} text={order.city} />
@@ -50,27 +49,28 @@ export default function OrderCard({
           <Row icon={Calendar} text={order.dueDate} danger />
         </div>
 
+        {/* money */}
         <div className="flex gap-4 text-sm">
           <span>₹{order.total}</span>
           <span className="text-green-500">Paid ₹{order.paid}</span>
           <span className="text-red-500">Due ₹{due}</span>
         </div>
 
+        {/* actions */}
         <div className="flex flex-wrap gap-3 pt-2">
-          <Action icon={Pencil} label="Edit" onClick={onEdit} color="bg-indigo-500" />
+          <Action
+            icon={Pencil}
+            label="Edit"
+            onClick={onEdit}
+            color="bg-indigo-500"
+          />
 
+          {/* 🔑 FIXED: always call with order */}
           <Action
             icon={FileText}
             label="Invoice"
-            onClick={locked ? null : onInvoice}
-            color={locked ? "bg-gray-400" : "bg-blue-500"}
-          />
-
-          <Action
-            icon={Send}
-            label="WhatsApp"
-            onClick={onWhatsApp}
-            color="bg-green-500"
+            onClick={() => onInvoice?.(order)}
+            color="bg-blue-500"
           />
 
           <Action
@@ -81,23 +81,39 @@ export default function OrderCard({
           />
 
           {order.status === "paid" && (
-            <Action icon={CheckCircle} label="Paid" color="bg-emerald-500" />
+            <Action
+              icon={CheckCircle}
+              label="Paid"
+              color="bg-emerald-500"
+            />
           )}
         </div>
       </div>
 
+      {/* delete confirm */}
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             onClick={() => setConfirming(false)}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <div className="relative w-[320px] p-6 rounded-2xl space-y-4 bg-white">
+
+          <div
+            className="relative w-[320px] p-6 rounded-2xl space-y-4 border shadow-xl animate-scale-in"
+            style={{
+              background: "var(--card-bg)",
+              borderColor: "var(--card-border)",
+            }}
+          >
             <h3 className="font-semibold text-lg">Delete order?</h3>
+            <p className="text-sm opacity-70">
+              This action cannot be undone.
+            </p>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirming(false)}
-                className="flex-1 py-2 rounded-xl bg-gray-200"
+                className="flex-1 py-2 rounded-xl bg-black/10 dark:bg-white/10"
               >
                 Cancel
               </button>
@@ -115,11 +131,13 @@ export default function OrderCard({
   );
 }
 
+/* sub components */
+
 function Row({ icon, text, danger }) {
   const Icon = icon;
   return (
     <div className={`flex items-center gap-2 ${danger ? "text-red-500" : ""}`}>
-      <Icon size={16} />
+      <Icon size={16} className="icon-muted" />
       {text}
     </div>
   );
@@ -129,9 +147,9 @@ function Action({ icon, label, color, onClick }) {
   const Icon = icon;
   return (
     <button
+      type="button"
       onClick={onClick}
-      disabled={!onClick}
-      className={`${color} text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm`}
+      className={`${color} text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm hover:opacity-90 transition`}
     >
       <Icon size={16} />
       {label}
