@@ -4,9 +4,9 @@ import { useTheme } from "../context/ThemeContext";
 import { useBusiness } from "../context/BusinessContext";
 import { useAuth } from "../context/AuthContext";
 
-/* small helper to keep logo safe */
+/* keep logo safe, never crash header */
 function resolveLogo({ logo, user, businessName }) {
-  if (logo) return logo;
+  if (typeof logo === "string" && logo.trim()) return logo;
   if (user?.photoURL) return user.photoURL;
 
   return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
@@ -23,7 +23,7 @@ export default function Header() {
   const displayLogo = resolveLogo({ logo, user, businessName });
 
   return (
-    <header className="sticky top-0 z-40">
+    <header className="sticky top-4 z-40">
       <div
         className="
           mx-auto max-w-5xl
@@ -38,17 +38,23 @@ export default function Header() {
           borderColor: "var(--card-border)",
         }}
       >
-        {/* left: logo + name */}
+        {/* left side */}
         <div className="flex items-center gap-3 min-w-0">
-          {/* logo (fixed size, no stretching) */}
-          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+          {/* logo */}
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-black/5 dark:bg-white/10">
             <img
               src={displayLogo}
               alt="logo"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                  businessName || "D"
+                )}`;
+              }}
             />
           </div>
 
+          {/* business info */}
           <div className="min-w-0">
             <p className="font-semibold leading-tight truncate">
               {businessName || "Your business"}
@@ -59,10 +65,11 @@ export default function Header() {
           </div>
         </div>
 
-        {/* right: actions */}
+        {/* right side actions */}
         <div className="flex items-center gap-2">
           {/* theme toggle */}
           <button
+            type="button"
             onClick={toggleTheme}
             className="
               p-2 rounded-xl
@@ -81,6 +88,7 @@ export default function Header() {
 
           {/* settings */}
           <button
+            type="button"
             onClick={() => navigate("/settings")}
             className="
               p-2 rounded-xl
