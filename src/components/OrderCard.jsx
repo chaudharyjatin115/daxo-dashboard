@@ -7,13 +7,19 @@ import {
   FileText,
   Trash2,
   CheckCircle,
+  MessageCircle,
 } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 
-export default function OrderCard({ order, onEdit, onInvoice }) {
+export default function OrderCard({
+  order,
+  onEdit,
+  onInvoice,
+  onWhatsApp,
+}) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
 
@@ -21,7 +27,9 @@ export default function OrderCard({ order, onEdit, onInvoice }) {
 
   async function remove() {
     try {
-      await deleteDoc(doc(db, "users", user.uid, "orders", order.id));
+      await deleteDoc(
+        doc(db, "users", user.uid, "orders", order.id)
+      );
       setConfirming(false);
     } catch (e) {
       alert(e.message);
@@ -65,13 +73,22 @@ export default function OrderCard({ order, onEdit, onInvoice }) {
             color="bg-indigo-500"
           />
 
-          {/* 🔑 FIXED: always call with order */}
           <Action
             icon={FileText}
             label="Invoice"
             onClick={() => onInvoice?.(order)}
             color="bg-blue-500"
           />
+
+          {/* whatsapp share */}
+          {onWhatsApp && (
+            <Action
+              icon={MessageCircle}
+              label="WhatsApp"
+              onClick={() => onWhatsApp(order)}
+              color="bg-emerald-600"
+            />
+          )}
 
           <Action
             icon={Trash2}
@@ -105,7 +122,9 @@ export default function OrderCard({ order, onEdit, onInvoice }) {
               borderColor: "var(--card-border)",
             }}
           >
-            <h3 className="font-semibold text-lg">Delete order?</h3>
+            <h3 className="font-semibold text-lg">
+              Delete order?
+            </h3>
             <p className="text-sm opacity-70">
               This action cannot be undone.
             </p>
