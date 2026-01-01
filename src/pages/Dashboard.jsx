@@ -4,13 +4,20 @@ import SummaryCards from "../components/SummaryCards";
 import OrderTabs from "../components/OrderTabs";
 import OrderCard from "../components/OrderCard";
 import AddEditOrderModal from "../components/AddEditOrderModal";
-
 import { useOrders } from "../hooks/useOrders";
+
+import {
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useBusiness } from "../context/BusinessContext";
-
-import { addDoc, collection, doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
 
 import { generateInvoicePDF } from "../utils/generateInvoice";
 import { getNextInvoiceNumber } from "../utils/getNextInvoiceNumber";
@@ -22,81 +29,108 @@ export default function Dashboard() {
 
   const [tab, setTab] = useState("pending");
   const [editingOrder, setEditingOrder] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
-  const filteredOrders = orders.filter(o => o.status === tab);
+  const filteredOrders = orders.filter((o) => o.status === tab);
 
+  /* generate + lock invoice */
   async function handleInvoice(order) {
-    if (order.invoiceLocked) return;
+    if (!user || generating) return;
 
-    const invoiceNumber =
-      order.invoiceNumber ||
-      (await getNextInvoiceNumber(user.uid));
+    // already generated → just open
+    if (order.invoicePdfUrl) {
+      window.open(order.invoicePdfUrl, "_blank");
+      return;
+    }
 
-    const invoice = {
-      invoiceNumber,
-      status: order.paid >= order.total ? "paid" : "pending",
-      createdAt: serverTimestamp(),
-    };
+    setGenerating(true);
 
-    await addDoc(
-      collection(db, "users", user.uid, "invoices"),
-      { ...invoice, orderId: order.id }
-    );
+    try {
+      // get sequential number (atomic)
+      const invoiceNumber = await getNextInvoiceNumber(user.uid);
 
-    await updateDoc(
-      doc(db, "users", user.uid, "orders", order.id),
-      {
+      const invoiceData = {
         invoiceNumber,
-        invoiceLocked: invoice.status === "paid",
-      }
-    );
+        orderId: order.id,
+        status: order.paid >= order.total ? "paid" : "unpaid",
+        createdAt: serverTimestamp(),
+      };
 
-    const pdf = generateInvoicePDF({
-      business: { name: businessName || "Business" },
-      order,
-      invoice,
-    });
+      // create invoice record
+      const invoiceRef = await addDoc(
+        collection(db, "users", user.uid, "invoices"),
+        invoiceData
+      );
 
-    pdf.save(`${invoiceNumber}.pdf`);
+      // generate pdf
+      const pdf = generateInvoicePDF({
+        business: { name: businessName || "Business" },
+        order,
+        invoice: invoiceData,
+      });
+
+      // convert to blob safely
+      const blob = pdf.output("blob");
+
+      // upload pdf
+      const fileRef = ref(
+        storage,
+        `invoices/${user.uid}/${invoiceNumber}.pdf`
+      );
+
+      await uploadBytes(fileRef, blob);
+      const pdfUrl = await getDownloadURL(fileRef);
+
+      // save pdf url
+      await updateDoc(invoiceRef, { pdfUrl });
+
+      // lock invoice to order
+      await updateDoc(
+        doc(db, "users", user.uid, "orders", order.id),
+        {
+          invoicePdfUrl: pdfUrl,
+          invoiceNumber,
+          invoiceId: invoiceRef.id,
+        }
+      );
+
+      window.open(pdfUrl, "_blank");
+    } catch (err) {
+      console.error("invoice error:", err);
+      alert("Failed to generate invoice");
+    } finally {
+      setGenerating(false);
+    }
   }
 
-  async function handleWhatsApp(order) {
-    const pdf = generateInvoicePDF({
-      business: { name: businessName || "Business" },
-      order,
-      invoice: {
-        invoiceNumber: order.invoiceNumber,
-        status: order.status,
-      },
-    });
-
-    const blob = pdf.output("blob");
-    const file = new File([blob], `${order.invoiceNumber}.pdf`, {
-      type: "application/pdf",
-    });
-
-    if (navigator.share) {
-      await navigator.share({
-        files: [file],
-        title: "Invoice",
-      });
+  /* whatsapp share (real pdf) */
+  function handleWhatsApp(order) {
+    if (!order.invoicePdfUrl) {
+      alert("Generate invoice first");
+      return;
     }
+
+    const text = `Invoice for ${order.customer}\n\n${order.invoicePdfUrl}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   }
 
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <Header />
+
         <SummaryCards orders={orders} />
+
         <OrderTabs value={tab} onChange={setTab} />
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-h-[240px]">
           {loading ? (
-            <div className="text-center py-20 opacity-60">
+            <div className="text-center opacity-60 py-20">
               loading orders…
             </div>
           ) : filteredOrders.length ? (
-            filteredOrders.map(o => (
+            filteredOrders.map((o) => (
               <OrderCard
                 key={o.id}
                 order={o}
@@ -106,16 +140,25 @@ export default function Dashboard() {
               />
             ))
           ) : (
-            <div className="text-center py-20 opacity-60">
-              no {tab} orders
+            <div className="text-center opacity-60 py-20">
+              📦 no {tab} orders
+              <div className="text-sm mt-1">
+                tap + to add your first order
+              </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* add order */}
       <button
         onClick={() => setEditingOrder({})}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-indigo-500 text-white text-3xl"
+        className="
+          fixed bottom-6 right-6
+          w-14 h-14 rounded-full
+          accent-bg text-white text-3xl
+          shadow-lg
+        "
       >
         +
       </button>

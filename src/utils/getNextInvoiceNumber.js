@@ -7,9 +7,10 @@ export async function getNextInvoiceNumber(uid) {
 
   const next = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    const current = snap.exists() ? snap.data().value : 0;
+    const current = snap.exists() ? snap.data().value || 0 : 0;
     const value = current + 1;
-    tx.set(ref, { value });
+
+    tx.set(ref, { value }, { merge: true });
     return value;
   });
 
