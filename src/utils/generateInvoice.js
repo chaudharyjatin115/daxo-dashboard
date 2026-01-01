@@ -33,7 +33,14 @@ export function generateInvoicePDF({ business, order, invoice }) {
   pdf.text(`Due: ₹${order.total - order.paid}`, 20, y);
 
   // paid watermark (safe + production style)
-  ;
+  if (invoice.status === "paid") {
+  pdf.setTextColor(220, 220, 220);
+  pdf.setFontSize(48);
+  pdf.text("PAID", 35, 150, {
+    angle: 35,
+  });
+  pdf.setTextColor(0, 0, 0);
+}
     pdf.setFontSize(60);
     pdf.text("PAID", 35, 190, {
       rotate: 45,
