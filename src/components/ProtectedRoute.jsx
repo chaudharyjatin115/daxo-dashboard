@@ -1,22 +1,16 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useBusiness } from "../context/BusinessContext";
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const { onboarded, loading: bizLoading } = useBusiness();
 
-  // wait until firebase finishes restoring session
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center opacity-60">
-        Loading…
-      </div>
-    );
-  }
+  if (loading || bizLoading) return null;
 
-  // not logged in → go to login
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" />;
+
+  if (!onboarded) return <Navigate to="/onboarding" />;
 
   return children;
 }
