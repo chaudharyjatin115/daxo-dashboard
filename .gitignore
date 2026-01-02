@@ -78,3 +78,6 @@ coverage/
 # Optional: Firebase Hosting
 # ===============================
 .firebasehosting.*
+.env
+.env.local
+.env.*.local
