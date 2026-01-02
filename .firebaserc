@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "daxo-dashboard"
-  }
+    "default": "daxo-dashboard-fa691"
+  },
+  "targets": {},
+  "etags": {}
 }
