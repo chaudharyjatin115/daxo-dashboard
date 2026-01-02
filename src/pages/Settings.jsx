@@ -394,3 +394,186 @@
 //     </main>
 //   );
 // }
+import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { useBusiness } from "../context/BusinessContext";
+import Header from "../components/Header";
+
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const MAX_LOGO_SIZE_MB = 2;
+
+const COLORS = [
+  "#7c6cf6",
+  "#2563eb",
+  "#16a34a",
+  "#ea580c",
+  "#dc2626",
+  "#0f766e",
+];
+
+/* safe logo resolver */
+function resolveLogo({ logo, user, businessName }) {
+  if (typeof logo === "string" && logo.trim()) return logo;
+  if (user?.photoURL) return user.photoURL;
+
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+    businessName || "D"
+  )}`;
+}
+
+export default function Settings() {
+  const { logout, user, deleteAccount } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const {
+    businessName,
+    setBusinessName,
+    saveBusinessName,
+    logo,
+    setLogo,
+  } = useBusiness();
+
+  const navigate = useNavigate();
+
+  const [accent, setAccent] = useState(
+    localStorage.getItem("accent") || COLORS[0]
+  );
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  /* accent color */
+  useEffect(() => {
+    document.documentElement.style.setProperty("--accent", accent);
+    localStorage.setItem("accent", accent);
+  }, [accent]);
+
+  /* save business name */
+  async function handleSaveBusinessName() {
+    if (!user || saving) return;
+
+    setSaving(true);
+    try {
+      await saveBusinessName(businessName?.trim() || "");
+    } catch (err) {
+      console.error(err);
+      alert("failed to save business name");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* 🔥 NEW: simple, safe account deletion */
+  async function handleDelete() {
+    const ok = confirm(
+      "This will permanently delete your account and all data."
+    );
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      navigate("/login", { replace: true });
+    } catch (e) {
+      alert(e.message || "Account deletion failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const displayLogo = resolveLogo({ logo, user, businessName });
+
+  return (
+    <main className="min-h-screen px-4 py-10 bg-[var(--bg-gradient)]">
+      <div className="max-w-md mx-auto space-y-6">
+        <Header />
+
+        <div
+          className="
+            p-6 rounded-3xl
+            backdrop-blur-xl border shadow-lg
+            space-y-6
+          "
+          style={{
+            background: "var(--card-bg)",
+            borderColor: "var(--card-border)",
+          }}
+        >
+          <h1 className="text-xl font-semibold">settings</h1>
+
+          {/* theme */}
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm font-medium">theme</p>
+              <p className="text-xs opacity-70">
+                currently using {theme} mode
+              </p>
+            </div>
+            <button
+              onClick={toggleTheme}
+              className="px-4 py-2 rounded-xl bg-[var(--accent)] text-white"
+            >
+              {theme === "dark" ? "light" : "dark"}
+            </button>
+          </div>
+
+          {/* business name */}
+          <div className="space-y-2">
+            <label className="text-sm opacity-70">business name</label>
+            <input
+              value={businessName || ""}
+              onChange={(e) => setBusinessName(e.target.value)}
+              className="w-full p-3 rounded-xl bg-black/5 dark:bg-white/10"
+            />
+            <button
+              onClick={handleSaveBusinessName}
+              disabled={saving}
+              className="w-full py-2 rounded-xl bg-[var(--accent)] text-white"
+            >
+              {saving ? "saving…" : "save name"}
+            </button>
+          </div>
+
+          {/* accent */}
+          <div>
+            <p className="text-sm mb-2">brand accent</p>
+            <div className="flex gap-3">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setAccent(c)}
+                  className={`w-8 h-8 rounded-full border-2 ${
+                    accent === c ? "scale-110" : "opacity-70"
+                  }`}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* user info */}
+          <div className="text-sm opacity-80">
+            <p>👤 {user?.displayName || "email user"}</p>
+            <p>📧 {user?.email}</p>
+          </div>
+
+          <button
+            onClick={logout}
+            disabled={deleting}
+            className="w-full py-3 rounded-xl bg-red-500 text-white"
+          >
+            logout
+          </button>
+
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full py-3 rounded-xl border border-red-500 text-red-600"
+          >
+            {deleting ? "deleting…" : "delete my account"}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
