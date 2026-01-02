@@ -1,146 +1,146 @@
-import { useState } from "react";
-import { Mail, Lock } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+// import { useState } from "react";
+// import { Mail, Lock } from "lucide-react";
+// import { useAuth } from "../context/AuthContext";
+// import { useNavigate } from "react-router-dom";
 
-export default function Signup() {
-  const { signup, loginWithGoogle } = useAuth();
-  const navigate = useNavigate();
+// export default function Signup() {
+//   const { signup, loginWithGoogle } = useAuth();
+//   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [loading, setLoading] = useState(false);
 
-  async function handleSignup(e) {
-    e.preventDefault();
-    if (loading) return;
+//   async function handleSignup(e) {
+//     e.preventDefault();
+//     if (loading) return;
 
-    setLoading(true);
-    try {
-      await signup(email, password);
-      // ❗ do NOT navigate here
-      // auth guard will handle redirect
-    } catch (e) {
-      alert(e.message);
-      setLoading(false);
-    }
-  }
+//     setLoading(true);
+//     try {
+//       await signup(email, password);
+//       // ❗ do NOT navigate here
+//       // auth guard will handle redirect
+//     } catch (e) {
+//       alert(e.message);
+//       setLoading(false);
+//     }
+//   }
 
-  async function handleGoogle() {
-    if (loading) return;
-    setLoading(true);
+//   async function handleGoogle() {
+//     if (loading) return;
+//     setLoading(true);
 
-    try {
-      await loginWithGoogle();
-      // redirect flow → auth guard handles it
-    } catch (e) {
-      alert(e.message);
-      setLoading(false);
-    }
-  }
+//     try {
+//       await loginWithGoogle();
+//       // redirect flow → auth guard handles it
+//     } catch (e) {
+//       alert(e.message);
+//       setLoading(false);
+//     }
+//   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div
-        className="
-          w-full max-w-md p-8 rounded-3xl
-          border shadow-xl space-y-6
-          animate-scale-in
-          text-black dark:text-white
-        "
-        style={{
-          background: "var(--card-bg)",
-          borderColor: "var(--card-border)",
-        }}
-      >
-        {/* logo */}
-        <div className="flex justify-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
-            <div className="absolute inset-[3px] rounded-2xl bg-black flex items-center justify-center text-white font-bold">
-              D
-            </div>
-          </div>
-        </div>
+//   return (
+//     <div className="min-h-screen flex items-center justify-center px-4">
+//       <div
+//         className="
+//           w-full max-w-md p-8 rounded-3xl
+//           border shadow-xl space-y-6
+//           animate-scale-in
+//           text-black dark:text-white
+//         "
+//         style={{
+//           background: "var(--card-bg)",
+//           borderColor: "var(--card-border)",
+//         }}
+//       >
+//         {/* logo */}
+//         <div className="flex justify-center">
+//           <div className="relative w-16 h-16">
+//             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
+//             <div className="absolute inset-[3px] rounded-2xl bg-black flex items-center justify-center text-white font-bold">
+//               D
+//             </div>
+//           </div>
+//         </div>
 
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Create your account</h1>
-          <p className="text-sm opacity-70">
-            Start managing orders in minutes
-          </p>
-        </div>
+//         <div className="text-center">
+//           <h1 className="text-2xl font-semibold">Create your account</h1>
+//           <p className="text-sm opacity-70">
+//             Start managing orders in minutes
+//           </p>
+//         </div>
 
-        {/* google */}
-        <button
-          onClick={handleGoogle}
-          disabled={loading}
-          className="
-            w-full flex items-center justify-center gap-3
-            py-3 rounded-xl border
-            hover:shadow-md transition
-            disabled:opacity-60
-          "
-          style={{
-            background: "var(--card-bg)",
-            borderColor: "var(--card-border)",
-          }}
-        >
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google"
-            className="w-5 h-5"
-          />
-          Continue with Google
-        </button>
+//         {/* google */}
+//         <button
+//           onClick={handleGoogle}
+//           disabled={loading}
+//           className="
+//             w-full flex items-center justify-center gap-3
+//             py-3 rounded-xl border
+//             hover:shadow-md transition
+//             disabled:opacity-60
+//           "
+//           style={{
+//             background: "var(--card-bg)",
+//             borderColor: "var(--card-border)",
+//           }}
+//         >
+//           <img
+//             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+//             alt="Google"
+//             className="w-5 h-5"
+//           />
+//           Continue with Google
+//         </button>
 
-        <div className="flex items-center gap-3 text-xs opacity-60">
-          <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
-          OR
-          <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
-        </div>
+//         <div className="flex items-center gap-3 text-xs opacity-60">
+//           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
+//           OR
+//           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
+//         </div>
 
-        {/* email signup */}
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
-            <Mail className="text-purple-500" size={18} />
-            <input
-              type="email"
-              placeholder="Email address"
-              className="w-full outline-none bg-transparent"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+//         {/* email signup */}
+//         <form onSubmit={handleSignup} className="space-y-4">
+//           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
+//             <Mail className="text-purple-500" size={18} />
+//             <input
+//               type="email"
+//               placeholder="Email address"
+//               className="w-full outline-none bg-transparent"
+//               value={email}
+//               onChange={(e) => setEmail(e.target.value)}
+//             />
+//           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
-            <Lock className="text-indigo-500" size={18} />
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full outline-none bg-transparent"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+//           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/10">
+//             <Lock className="text-indigo-500" size={18} />
+//             <input
+//               type="password"
+//               placeholder="Password"
+//               className="w-full outline-none bg-transparent"
+//               value={password}
+//               onChange={(e) => setPassword(e.target.value)}
+//             />
+//           </div>
 
-          <button
-            disabled={loading}
-            className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
-          >
-            {loading ? "Creating account…" : "Create account"}
-          </button>
-        </form>
+//           <button
+//             disabled={loading}
+//             className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
+//           >
+//             {loading ? "Creating account…" : "Create account"}
+//           </button>
+//         </form>
 
-        <p className="text-sm text-center">
-          Already have an account?{" "}
-          <span
-            className="accent-text cursor-pointer"
-            onClick={() => navigate("/login")}
-          >
-            Log in
-          </span>
-        </p>
-      </div>
-    </div>
-  );
-}
+//         <p className="text-sm text-center">
+//           Already have an account?{" "}
+//           <span
+//             className="accent-text cursor-pointer"
+//             onClick={() => navigate("/login")}
+//           >
+//             Log in
+//           </span>
+//         </p>
+//       </div>
+//     </div>
+//   );
+// }
