@@ -1,72 +1,53 @@
-import { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
 
-export default function AuthGate({ children }) {
+export default function AuthGate() {
   const { user, loading } = useAuth();
-  const location = useLocation();
-
-  const [checkingProfile, setCheckingProfile] = useState(true);
+  const [checking, setChecking] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
-    // not logged in → nothing to check
-    if (!user) {
-      setCheckingProfile(false);
-      return;
-    }
-
-    let active = true;
-
     async function checkOnboarding() {
+      if (!user) {
+        setChecking(false);
+        return;
+      }
+
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
-
-        if (!active) return;
-
-        setOnboarded(Boolean(snap.exists() && snap.data()?.onboarded));
-      } catch (err) {
-        console.error("failed to check onboarding", err);
+        setOnboarded(Boolean(snap.data()?.onboarded));
+      } catch {
         setOnboarded(false);
       } finally {
-        if (active) setCheckingProfile(false);
+        setChecking(false);
       }
     }
 
     checkOnboarding();
-
-    return () => {
-      active = false;
-    };
   }, [user]);
 
-  /* 🔒 still checking auth or profile */
-  if (loading || checkingProfile) {
+  // still figuring out auth or onboarding
+  if (loading || checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-sm opacity-70">
-        Loading…
+      <div className="min-h-screen flex items-center justify-center opacity-60">
+        loading…
       </div>
     );
   }
 
-  /* ❌ not logged in */
+  // not logged in
   if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
-  /* 🆕 logged in but not onboarded */
-  if (!onboarded && location.pathname !== "/onboarding") {
+  // logged in but not onboarded
+  if (!onboarded) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  /* ✅ all good */
-  return children;
+  // logged in + onboarded
+  return <Outlet />;
 }
