@@ -1,73 +1,91 @@
 import jsPDF from "jspdf";
 
 export function generateInvoicePDF({ business, order, invoice }) {
-  const pdf = new jsPDF({
-    unit: "mm",
-    format: "a4",
-  });
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
 
-  /* ---------- header ---------- */
+  const left = 20;
+  let y = 20;
+
+  /* header */
   pdf.setFontSize(18);
-  pdf.text(business.name || "Business", 20, 20);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(business.name, left, y);
 
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(`Invoice No: ${invoice.invoiceNumber}`, 150, y);
+  y += 8;
+
+  pdf.text(`Date: ${new Date().toLocaleDateString()}`, 150, y);
+  y += 20;
+
+  /* bill to */
   pdf.setFontSize(11);
-  pdf.text(`Invoice No: ${invoice.invoiceNumber}`, 20, 32);
-  pdf.text(
-    `Date: ${new Date().toLocaleDateString()}`,
-    20,
-    40
-  );
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Bill To", left, y);
 
-  /* ---------- customer ---------- */
-  pdf.setFontSize(12);
-  pdf.text("Bill To", 20, 55);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.text(order.customer, left, y);
 
-  pdf.setFontSize(11);
-  pdf.text(order.customer || "-", 20, 63);
   if (order.city) {
-    pdf.text(order.city, 20, 70);
+    y += 5;
+    pdf.text(order.city, left, y);
   }
 
-  /* ---------- order details ---------- */
-  let y = 90;
-  pdf.setFontSize(11);
+  y += 20;
 
-  pdf.text(`Product: ${order.product || "-"}`, 20, y);
-  y += 10;
+  /* table header */
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Description", left, y);
+  pdf.text("Amount", 170, y, { align: "right" });
 
-  pdf.text(`Total: ₹${order.total}`, 20, y);
+  y += 3;
+  pdf.line(left, y, 190, y);
   y += 8;
 
-  pdf.text(`Paid: ₹${order.paid}`, 20, y);
+  /* item */
+  pdf.setFont("helvetica", "normal");
+  pdf.text(order.product || "Order", left, y);
+  pdf.text(`₹${order.total}`, 170, y, { align: "right" });
+
+  y += 15;
+
+  /* totals */
+  pdf.line(left, y, 190, y);
   y += 8;
 
-  pdf.text(`Due: ₹${order.total - order.paid}`, 20, y);
+  pdf.text("Total", left, y);
+  pdf.text(`₹${order.total}`, 170, y, { align: "right" });
 
-  /* ---------- paid watermark ---------- */
+  y += 6;
+  pdf.text("Paid", left, y);
+  pdf.text(`₹${order.paid}`, 170, y, { align: "right" });
+
+  y += 6;
+  pdf.text("Due", left, y);
+  pdf.text(`₹${order.total - order.paid}`, 170, y, { align: "right" });
+
+  /* paid watermark */
   if (invoice.status === "paid") {
-    pdf.saveGraphicsState();
-
-    pdf.setTextColor(230, 230, 230);
-    pdf.setFontSize(52);
-
-    pdf.text("PAID", 35, 160, {
-      angle: 35,
+    pdf.setTextColor(220);
+    pdf.setFontSize(48);
+    pdf.text("PAID", 105, 160, {
+      align: "center",
+      angle: 30,
     });
-
-    pdf.restoreGraphicsState();
     pdf.setTextColor(0);
   }
 
-  /* ---------- footer ---------- */
+  /* footer */
   pdf.setFontSize(9);
   pdf.setTextColor(120);
   pdf.text(
-    "This is a system generated invoice. No signature required.",
-    20,
-    280
+    "This is a system generated invoice.",
+    left,
+    285
   );
 
   pdf.setTextColor(0);
-
   return pdf;
 }
