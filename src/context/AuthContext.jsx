@@ -16,12 +16,14 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔑 single source of truth — DO NOT TOUCH
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
       setLoading(false);
     });
-    return unsub;
+
+    return unsubscribe;
   }, []);
 
   function login(email, password) {
@@ -29,14 +31,22 @@ export function AuthProvider({ children }) {
   }
 
   async function signup(email, password) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const cred = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     await sendEmailVerification(cred.user);
     return cred;
   }
 
+  // ✅ WORKS ON DESKTOP + ANDROID + FIREBASE HOSTING
   async function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+    provider.setCustomParameters({
+      prompt: "select_account",
+    });
+
     return signInWithPopup(auth, provider);
   }
 
@@ -46,7 +56,14 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, signup, loginWithGoogle, logout }}
+      value={{
+        user,
+        loading,
+        login,
+        signup,
+        loginWithGoogle,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -55,6 +72,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
   return ctx;
 }
