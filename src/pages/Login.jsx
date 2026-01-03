@@ -267,7 +267,12 @@ export default function Login() {
           />
           Continue with Google
         </button>
-
+<button
+  onClick={() => navigate("/forgot-password")}
+  className="w-full text-sm text-center opacity-70 hover:opacity-100"
+>
+  Forgot password?
+</button>
         {/* create account */}
         <p className="text-sm text-center pt-2">
           Don’t have an account?{" "}
