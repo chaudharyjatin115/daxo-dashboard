@@ -1,36 +1,48 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, user, loading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // 🔑 important: react to auth state change
+  useEffect(() => {
+    if (!loading && user) {
+      // let auth gate decide onboarding vs dashboard
+      navigate("/", { replace: true });
+    }
+  }, [user, loading, navigate]);
 
   async function handleLogin(e) {
     e.preventDefault();
-    if (loading) return;
+    if (submitting) return;
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await login(email, password);
+      // ❌ no navigate here
     } catch (e) {
       alert(e.message);
-    } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
   async function handleGoogle() {
-    if (loading) return;
+    if (submitting) return;
+    setSubmitting(true);
+
     try {
       await loginWithGoogle();
+      // ❌ no navigate here
     } catch (e) {
       alert(e.message);
+      setSubmitting(false);
     }
   }
 
@@ -46,7 +58,7 @@ export default function Login() {
         {/* logo */}
         <div className="flex justify-center">
           <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 animate-gradient-spin" />
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500" />
             <div className="absolute inset-[3px] rounded-2xl bg-black flex items-center justify-center text-white font-bold">
               D
             </div>
@@ -65,8 +77,8 @@ export default function Login() {
             <Mail size={18} />
             <input
               type="email"
-              placeholder="Email address"
-              className="w-full outline-none bg-transparent"
+              placeholder="Email"
+              className="w-full bg-transparent outline-none"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -77,26 +89,19 @@ export default function Login() {
             <input
               type="password"
               placeholder="Password"
-              className="w-full outline-none bg-transparent"
+              className="w-full bg-transparent outline-none"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           <button
-            disabled={loading}
+            disabled={submitting}
             className="w-full py-3 rounded-xl accent-bg font-medium disabled:opacity-60"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <button
-          onClick={() => navigate("/forgot-password")}
-          className="w-full text-sm accent-text text-center"
-        >
-          Forgot password?
-        </button>
 
         <div className="flex items-center gap-3 text-xs opacity-60">
           <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
@@ -106,7 +111,8 @@ export default function Login() {
 
         <button
           onClick={handleGoogle}
-          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border hover:shadow-md transition"
+          disabled={submitting}
+          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border disabled:opacity-60"
           style={{
             background: "var(--card-bg)",
             borderColor: "var(--card-border)",
@@ -119,25 +125,6 @@ export default function Login() {
           />
           Continue with Google
         </button>
-
-        {/* secondary signup cta */}
-        <button
-          onClick={() => navigate("/signup")}
-          className="w-full py-2 rounded-xl bg-black/5 dark:bg-white/10 text-sm"
-        >
-          Create new account
-        </button>
-
-        {/* text fallback */}
-        <p className="text-sm text-center opacity-70">
-          New here?{" "}
-          <span
-            className="accent-text cursor-pointer"
-            onClick={() => navigate("/signup")}
-          >
-            Create one
-          </span>
-        </p>
       </div>
     </div>
   );
