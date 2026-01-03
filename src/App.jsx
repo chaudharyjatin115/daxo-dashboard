@@ -4,7 +4,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
-import AuthGate from "./routes/AuthGate";
+import AuthGate from "./components/AuthGate";
 
 export default function App() {
   return (
