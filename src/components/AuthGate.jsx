@@ -1,52 +1,33 @@
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 export default function AuthGate({ children }) {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
+  const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
-
     if (!user) {
-      navigate("/login", { replace: true });
+      setChecking(false);
       return;
     }
 
-    async function resolveUser() {
-      const ref = doc(db, "users", user.uid);
-      const snap = await getDoc(ref);
-
-      // 🆕 first-time Google user
-      if (!snap.exists()) {
-        await setDoc(ref, {
-          email: user.email,
-          onboarded: false,
-          createdAt: new Date(),
-        });
-
-        navigate("/onboarding", { replace: true });
-        return;
-      }
-
-      // existing user
-      if (snap.data().onboarded) {
-        navigate("/dashboard", { replace: true });
-      } else {
-        navigate("/onboarding", { replace: true });
-      }
-
+    async function check() {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      setOnboarded(snap.exists() && snap.data()?.onboarded === true);
       setChecking(false);
     }
 
-    resolveUser();
-  }, [user, loading, navigate]);
+    check();
+  }, [user]);
 
-  if (checking) return null;
+  if (loading || checking) return null;
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!onboarded) return <Navigate to="/onboarding" replace />;
 
   return children;
 }
