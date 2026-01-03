@@ -1,104 +1,57 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-import { useAuth } from "./context/AuthContext";
+import { Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
-import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
 
-/* simple guards – no fancy logic */
-function PrivateRoute({ children }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-function PublicRoute({ children }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading…
-      </div>
-    );
-  }
-
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
+import AuthGate from "./components/AuthGate";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* public */}
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
-        />
+    <Routes>
+      {/* public */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
-        <Route
-          path="/signup"
-          element={
-            <PublicRoute>
-              <Signup />
-            </PublicRoute>
-          }
-        />
+      {/* protected */}
+      <Route
+        path="/dashboard"
+        element={
+          <AuthGate>
+            <Dashboard />
+          </AuthGate>
+        }
+      />
 
-        {/* private */}
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
+      <Route
+        path="/onboarding"
+        element={
+          <AuthGate>
+            <Onboarding />
+          </AuthGate>
+        }
+      />
 
-        <Route
-          path="/settings"
-          element={
-            <PrivateRoute>
-              <Settings />
-            </PrivateRoute>
-          }
-        />
+      <Route
+        path="/settings"
+        element={
+          <AuthGate>
+            <Settings />
+          </AuthGate>
+        }
+      />
 
-        <Route
-          path="/onboarding"
-          element={
-            <PrivateRoute>
-              <Onboarding />
-            </PrivateRoute>
-          }
-        />
-
-        {/* fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+      {/* fallback */}
+      <Route
+        path="*"
+        element={
+          <AuthGate>
+            <Dashboard />
+          </AuthGate>
+        }
+      />
+    </Routes>
   );
 }
