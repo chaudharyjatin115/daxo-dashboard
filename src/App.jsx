@@ -1,36 +1,29 @@
 import { Routes, Route } from "react-router-dom";
+
+import AuthGate from "./components/AuthGate";
+
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
+import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
-import AuthGate from "./components/AuthGate";
 
 export default function App() {
   return (
     <Routes>
+      {/* public */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
-      <Route path="/onboarding" element={<AuthGate><Onboarding /></AuthGate>} />
+      {/* onboarding is special */}
+      <Route path="/onboarding" element={<Onboarding />} />
 
-      <Route
-        path="/"
-        element={
-          <AuthGate>
-            <Dashboard />
-          </AuthGate>
-        }
-      />
-
-      <Route
-        path="/settings"
-        element={
-          <AuthGate>
-            <Settings />
-          </AuthGate>
-        }
-      />
+      {/* protected app */}
+      <Route element={<AuthGate />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/" element={<Dashboard />} />
+      </Route>
     </Routes>
   );
 }
