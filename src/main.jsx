@@ -1,20 +1,21 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import "./index.css";
-
 import { AuthProvider } from "./context/AuthContext";
-import { BusinessProvider } from "./context/BusinessContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { BusinessProvider } from "./context/BusinessContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <BusinessProvider>
+    <BrowserRouter>
+      <AuthProvider>
         <ThemeProvider>
-          <App />
+          <BusinessProvider>
+            <App />
+          </BusinessProvider>
         </ThemeProvider>
-      </BusinessProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );
