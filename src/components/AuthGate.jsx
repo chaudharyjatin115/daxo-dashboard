@@ -1,10 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { useEffect, useState } from "react";
 
-export default function AuthGate() {
+export default function AuthGate({ children }) {
   const { user, loading } = useAuth();
   const [checking, setChecking] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
@@ -16,20 +16,14 @@ export default function AuthGate() {
         return;
       }
 
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        setOnboarded(Boolean(snap.data()?.onboarded));
-      } catch {
-        setOnboarded(false);
-      } finally {
-        setChecking(false);
-      }
+      const snap = await getDoc(doc(db, "users", user.uid));
+      setOnboarded(Boolean(snap.exists() && snap.data()?.onboarded));
+      setChecking(false);
     }
 
     checkOnboarding();
   }, [user]);
 
-  // still figuring out auth or onboarding
   if (loading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center opacity-60">
@@ -38,16 +32,13 @@ export default function AuthGate() {
     );
   }
 
-  // not logged in
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // logged in but not onboarded
   if (!onboarded) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // logged in + onboarded
-  return <Outlet />;
+  return children;
 }
