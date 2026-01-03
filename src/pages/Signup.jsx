@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,12 +7,20 @@ import { db } from "../firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function Signup() {
-  const { signup, loginWithGoogle, user } = useAuth();
+  const { signup, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 🔑 IMPORTANT: react to auth state change
+  useEffect(() => {
+    if (!authLoading && user) {
+      // AuthGate will decide onboarding vs dashboard
+      navigate("/", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   /* email signup */
   async function handleSignup(e) {
@@ -33,7 +40,7 @@ export default function Signup() {
         createdAt: serverTimestamp(),
       });
 
-      // new users always go to onboarding
+      // ✅ go straight to onboarding for email signup
       navigate("/onboarding", { replace: true });
     } catch (e) {
       alert(e.message);
@@ -47,10 +54,10 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      // redirect / popup handled inside auth context
+      // popup / redirect handled inside AuthContext
       await loginWithGoogle();
-      // do NOT navigate here
-      // auth guard decides where to go
+      // ❌ do NOT navigate here
+      // useEffect + AuthGate will handle it
     } catch (e) {
       alert(e.message);
       setLoading(false);
